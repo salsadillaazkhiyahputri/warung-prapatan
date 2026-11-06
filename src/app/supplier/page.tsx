@@ -113,7 +113,7 @@ export default function SupplierPage() {
             borderRadius: 'var(--radius-md)',
             boxShadow: 'var(--shadow-md)',
             color: '#0F172A',
-            fontSize: '13px',
+            fontSize: '13.5px',
             fontWeight: 600,
             animation: 'fadeIn 0.15s ease'
           }}
@@ -132,7 +132,7 @@ export default function SupplierPage() {
               borderRadius: 'var(--radius-full)',
               background: '#FFFFFF',
               border: '1px solid #E2E8F0',
-              fontSize: '12.5px',
+              fontSize: '13px',
               fontWeight: 600,
               color: '#0F172A',
               boxShadow: 'var(--shadow-xs)'
@@ -184,14 +184,14 @@ export default function SupplierPage() {
               suppliers.map((item) => (
                 <tr key={item.id}>
                   <td>
-                    <div style={{ fontWeight: 600, color: '#0F172A', fontSize: '13.5px' }}>
+                    <div style={{ fontWeight: 600, color: '#0F172A', fontSize: '14.5px' }}>
                       {item.name}
                     </div>
                   </td>
-                  <td style={{ color: '#334155', fontSize: '13.5px' }}>
+                  <td style={{ color: '#334155', fontSize: '14px' }}>
                     {item.transaction_count ?? 0}
                   </td>
-                  <td style={{ color: '#475569', fontSize: '13.5px' }}>
+                  <td style={{ color: '#475569', fontSize: '14px' }}>
                     {item.last_restock_date ? formatDateOnly(item.last_restock_date) : '-'}
                   </td>
                   <td style={{ textAlign: 'center' }}>

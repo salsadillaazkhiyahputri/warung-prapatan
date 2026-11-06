@@ -192,7 +192,7 @@ export default function LoginPage() {
             background: '#F8FAFC',
             border: '1px solid #E2E8F0',
             borderRadius: 'var(--radius-sm)',
-            fontSize: '12px',
+            fontSize: '13px',
             color: '#64748B',
             textAlign: 'center'
           }}

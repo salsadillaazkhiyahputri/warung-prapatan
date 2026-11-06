@@ -33,7 +33,7 @@ export const StatCard: React.FC<StatCardProps> = ({
       className="stat-card"
     >
       <div>
-        <p style={{ color: '#64748B', fontSize: '12.5px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '8px' }}>
+        <p style={{ color: '#64748B', fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '8px' }}>
           {title}
         </p>
         <h3
@@ -48,7 +48,7 @@ export const StatCard: React.FC<StatCardProps> = ({
           {value}
         </h3>
         {subtitle && (
-          <p style={{ fontSize: '12px', color: '#94A3B8', marginTop: '7px' }}>
+          <p style={{ fontSize: '13px', color: '#64748B', marginTop: '7px' }}>
             {subtitle}
           </p>
         )}

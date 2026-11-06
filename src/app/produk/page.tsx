@@ -227,7 +227,7 @@ export default function ProdukPage() {
             borderRadius: 'var(--radius-md)',
             boxShadow: 'var(--shadow-md)',
             color: '#0F172A',
-            fontSize: '13px',
+            fontSize: '13.5px',
             fontWeight: 600,
             animation: 'fadeIn 0.15s ease'
           }}
@@ -264,7 +264,7 @@ export default function ProdukPage() {
             <input
               type="text"
               className="form-input"
-              style={{ paddingLeft: '38px', height: '38px', fontSize: '13.5px' }}
+              style={{ paddingLeft: '38px', height: '40px', fontSize: '14px' }}
               placeholder="Cari produk..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -275,7 +275,7 @@ export default function ProdukPage() {
           <div style={{ width: '160px' }}>
             <select
               className="form-select"
-              style={{ height: '38px', fontSize: '13px' }}
+              style={{ height: '40px', fontSize: '14px' }}
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
             >
@@ -344,23 +344,23 @@ export default function ProdukPage() {
                 return (
                   <tr key={item.id}>
                     <td>
-                      <div style={{ fontWeight: 600, color: '#0F172A', fontSize: '13.5px' }}>
+                      <div style={{ fontWeight: 600, color: '#0F172A', fontSize: '14.5px' }}>
                         {item.name}
                       </div>
                     </td>
-                    <td style={{ color: '#334155', fontSize: '13px' }}>
+                    <td style={{ color: '#334155', fontSize: '14px' }}>
                       {item.category}
                     </td>
-                    <td style={{ color: '#475569', fontSize: '13px' }}>
+                    <td style={{ color: '#475569', fontSize: '14px' }}>
                       {item.unit}
                     </td>
-                    <td style={{ color: '#475569', fontSize: '13px' }}>
+                    <td style={{ color: '#475569', fontSize: '14px' }}>
                       {item.qty_per_karton ?? '-'}
                     </td>
                     <td>
                       <span
                         style={{
-                          fontSize: '14px',
+                          fontSize: '14.5px',
                           fontWeight: isLowStock ? 700 : 500,
                           color: isLowStock ? '#DC2626' : '#0F172A'
                         }}
@@ -714,10 +714,10 @@ export default function ProdukPage() {
           >
             <Trash2 size={20} />
           </div>
-          <h4 style={{ fontSize: '15.5px', fontWeight: 700, color: '#0F172A' }}>
+          <h4 style={{ fontSize: '16px', fontWeight: 700, color: '#0F172A' }}>
             Hapus produk ini?
           </h4>
-          <p style={{ fontSize: '13px', color: '#64748B', marginTop: '6px', lineHeight: 1.45 }}>
+          <p style={{ fontSize: '13.5px', color: '#64748B', marginTop: '6px', lineHeight: 1.45 }}>
             Produk &quot;{selectedProduct?.name}&quot; beserta riwayat terkait akan dihapus dari sistem.
           </p>
         </div>

@@ -123,11 +123,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
             </div>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <h1 style={{ fontSize: '15.5px', fontWeight: 700, color: '#FFFFFF', lineHeight: 1.2, letterSpacing: '-0.01em' }}>
+                <h1 style={{ fontSize: '16px', fontWeight: 700, color: '#FFFFFF', lineHeight: 1.2, letterSpacing: '-0.01em' }}>
                   Warung Prapatan
                 </h1>
               </div>
-              <p style={{ fontSize: '11.5px', color: '#94A3B8', marginTop: '2px', fontWeight: 500 }}>
+              <p style={{ fontSize: '12.5px', color: '#94A3B8', marginTop: '2px', fontWeight: 500 }}>
                 Sistem Manajemen Stok
               </p>
             </div>
@@ -149,7 +149,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
                     justifyContent: 'space-between',
                     padding: '10px 14px',
                     borderRadius: 'var(--radius-md)',
-                    fontSize: '13.5px',
+                    fontSize: '14px',
                     fontWeight: isActive ? 600 : 500,
                     color: isActive ? '#FFFFFF' : '#94A3B8',
                     background: isActive ? '#1E293B' : 'transparent',
@@ -206,18 +206,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontWeight: 700,
-                fontSize: '12px'
+                fontSize: '12.5px'
               }}
             >
               WP
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontSize: '13px', fontWeight: 600, color: '#FFFFFF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <p style={{ fontSize: '13.5px', fontWeight: 600, color: '#FFFFFF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 Pemilik Toko
               </p>
               <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '1px' }}>
                 <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981' }} />
-                <span style={{ fontSize: '11px', color: '#94A3B8' }}>Online</span>
+                <span style={{ fontSize: '12px', color: '#94A3B8' }}>Online</span>
               </div>
             </div>
           </div>
@@ -231,7 +231,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
               justifyContent: 'center',
               gap: '7px',
               padding: '9px 12px',
-              fontSize: '13px',
+              fontSize: '13.5px',
               fontWeight: 500,
               color: '#F87171',
               background: 'rgba(239, 68, 68, 0.08)',

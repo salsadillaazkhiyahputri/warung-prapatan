@@ -237,7 +237,7 @@ export default function RiwayatPage() {
             borderRadius: 'var(--radius-md)',
             boxShadow: 'var(--shadow-md)',
             color: '#0F172A',
-            fontSize: '13px',
+            fontSize: '13.5px',
             fontWeight: 600,
             animation: 'fadeIn 0.15s ease'
           }}
@@ -256,7 +256,7 @@ export default function RiwayatPage() {
               borderRadius: 'var(--radius-full)',
               background: '#FFFFFF',
               border: '1px solid #E2E8F0',
-              fontSize: '12.5px',
+              fontSize: '13px',
               fontWeight: 600,
               color: '#0F172A',
               boxShadow: 'var(--shadow-xs)'
@@ -331,7 +331,7 @@ export default function RiwayatPage() {
                       gap: '10px',
                       padding: '9px 12px',
                       borderRadius: '8px',
-                      fontSize: '13px',
+                      fontSize: '13.5px',
                       fontWeight: 600,
                       color: '#0F172A',
                       background: 'transparent',
@@ -358,7 +358,7 @@ export default function RiwayatPage() {
                     </div>
                     <div>
                       <span style={{ display: 'block', lineHeight: 1.2 }}>Unduh Excel (.xlsx)</span>
-                      <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 400 }}>Spreadsheet rekap KPI</span>
+                      <span style={{ fontSize: '12px', color: '#64748B', fontWeight: 400 }}>Spreadsheet rekap KPI</span>
                     </div>
                   </button>
 
@@ -374,7 +374,7 @@ export default function RiwayatPage() {
                       gap: '10px',
                       padding: '9px 12px',
                       borderRadius: '8px',
-                      fontSize: '13px',
+                      fontSize: '13.5px',
                       fontWeight: 600,
                       color: '#0F172A',
                       background: 'transparent',
@@ -401,7 +401,7 @@ export default function RiwayatPage() {
                     </div>
                     <div>
                       <span style={{ display: 'block', lineHeight: 1.2 }}>Unduh PDF (.pdf)</span>
-                      <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 400 }}>Dokumen A4 siap cetak</span>
+                      <span style={{ fontSize: '12px', color: '#64748B', fontWeight: 400 }}>Dokumen A4 siap cetak</span>
                     </div>
                   </button>
                 </div>
@@ -434,7 +434,7 @@ export default function RiwayatPage() {
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Filter size={15} style={{ color: '#0F172A' }} />
-            <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', margin: 0 }}>
+            <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', margin: 0 }}>
               Filter Riwayat Transaksi
             </h4>
           </div>
@@ -443,7 +443,7 @@ export default function RiwayatPage() {
             <button
               onClick={handleResetFilter}
               className="btn btn-secondary btn-sm"
-              style={{ height: '30px', fontSize: '12px', padding: '0 12px' }}
+              style={{ height: '32px', fontSize: '12.5px', padding: '0 12px' }}
             >
               <RotateCcw size={12} />
               <span>Reset Filter</span>
@@ -460,7 +460,7 @@ export default function RiwayatPage() {
         >
           {/* Dari Tanggal (DD/MM/YYYY) */}
           <div>
-            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
+            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
               <Calendar size={13} style={{ color: '#64748B' }} />
               <span>Dari Tanggal</span>
             </label>
@@ -474,7 +474,7 @@ export default function RiwayatPage() {
                   return `${d}/${m}/${y}`;
                 })() : ''}
                 className="form-input"
-                style={{ paddingRight: '38px', cursor: 'pointer', background: '#FFFFFF', height: '38px', fontSize: '13px' }}
+                style={{ paddingRight: '38px', cursor: 'pointer', background: '#FFFFFF', height: '40px', fontSize: '14px' }}
                 onClick={(e) => {
                   const dateInput = e.currentTarget.nextElementSibling as HTMLInputElement;
                   if (dateInput) {
@@ -514,7 +514,7 @@ export default function RiwayatPage() {
 
           {/* Sampai Tanggal (DD/MM/YYYY) */}
           <div>
-            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
+            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
               <Calendar size={13} style={{ color: '#64748B' }} />
               <span>Sampai Tanggal</span>
             </label>
@@ -528,7 +528,7 @@ export default function RiwayatPage() {
                   return `${d}/${m}/${y}`;
                 })() : ''}
                 className="form-input"
-                style={{ paddingRight: '38px', cursor: 'pointer', background: '#FFFFFF', height: '38px', fontSize: '13px' }}
+                style={{ paddingRight: '38px', cursor: 'pointer', background: '#FFFFFF', height: '40px', fontSize: '14px' }}
                 onClick={(e) => {
                   const dateInput = e.currentTarget.nextElementSibling as HTMLInputElement;
                   if (dateInput) {
@@ -568,13 +568,13 @@ export default function RiwayatPage() {
 
           {/* Filter Produk */}
           <div>
-            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
+            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
               <Filter size={13} style={{ color: '#64748B' }} />
               <span>Filter Produk</span>
             </label>
             <select
               className="form-select"
-              style={{ height: '38px', fontSize: '13px' }}
+              style={{ height: '40px', fontSize: '14px' }}
               value={selectedProductId}
               onChange={(e) => setSelectedProductId(e.target.value)}
             >
@@ -589,13 +589,13 @@ export default function RiwayatPage() {
 
           {/* Jenis Transaksi */}
           <div>
-            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
+            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
               <Filter size={13} style={{ color: '#64748B' }} />
               <span>Jenis Transaksi</span>
             </label>
             <select
               className="form-select"
-              style={{ height: '38px', fontSize: '13px' }}
+              style={{ height: '40px', fontSize: '14px' }}
               value={selectedType}
               onChange={(e) => setSelectedType(e.target.value as 'all' | TransactionType)}
             >
@@ -641,11 +641,11 @@ export default function RiwayatPage() {
                 const isIn = tx.type === 'in';
                 return (
                   <tr key={tx.id}>
-                    <td style={{ color: '#475569', fontSize: '13px' }}>
+                    <td style={{ color: '#475569', fontSize: '13.5px' }}>
                       {formatDateTime(tx.created_at)}
                     </td>
                     <td>
-                      <span style={{ fontWeight: 600, color: '#0F172A', fontSize: '13.5px' }}>
+                      <span style={{ fontWeight: 600, color: '#0F172A', fontSize: '14.5px' }}>
                         {tx.product?.name || `Produk #${tx.product_id}`}
                       </span>
                     </td>
@@ -658,7 +658,7 @@ export default function RiwayatPage() {
                       <span
                         style={{
                           fontWeight: 600,
-                          fontSize: '13.5px',
+                          fontSize: '14.5px',
                           color: isIn ? '#059669' : '#DC2626'
                         }}
                       >
@@ -666,7 +666,7 @@ export default function RiwayatPage() {
                       </span>
                     </td>
                     <td>
-                      <span style={{ color: isIn ? '#0F172A' : '#94A3B8', fontSize: '13px', fontWeight: isIn ? 500 : 400 }}>
+                      <span style={{ color: isIn ? '#0F172A' : '#94A3B8', fontSize: '14px', fontWeight: isIn ? 500 : 400 }}>
                         {isIn ? (tx.supplier?.name || '-') : '—'}
                       </span>
                     </td>
@@ -716,7 +716,7 @@ export default function RiwayatPage() {
                   padding: '9px',
                   borderRadius: 'var(--radius-md)',
                   fontWeight: 600,
-                  fontSize: '13px',
+                  fontSize: '13.5px',
                   background: manualForm.type === 'in' ? '#ECFDF5' : '#FFFFFF',
                   color: manualForm.type === 'in' ? '#065F46' : '#475569',
                   border: `1px solid ${manualForm.type === 'in' ? '#A7F3D0' : '#D1D5DB'}`,
@@ -732,7 +732,7 @@ export default function RiwayatPage() {
                   padding: '9px',
                   borderRadius: 'var(--radius-md)',
                   fontWeight: 600,
-                  fontSize: '13px',
+                  fontSize: '13.5px',
                   background: manualForm.type === 'out' ? '#FEF2F2' : '#FFFFFF',
                   color: manualForm.type === 'out' ? '#991B1B' : '#475569',
                   border: `1px solid ${manualForm.type === 'out' ? '#FECACA' : '#D1D5DB'}`,

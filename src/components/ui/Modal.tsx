@@ -90,7 +90,7 @@ export const Modal: React.FC<ModalProps> = ({
             background: '#F8FAFC'
           }}
         >
-          <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0F172A', margin: 0 }}>
+          <h3 style={{ fontSize: '17px', fontWeight: 700, color: '#0F172A', margin: 0 }}>
             {title}
           </h3>
           <button

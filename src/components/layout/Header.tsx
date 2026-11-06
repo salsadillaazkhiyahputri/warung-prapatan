@@ -60,11 +60,11 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
 
         <div>
-          <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#0F172A', lineHeight: 1.25, letterSpacing: '-0.02em' }}>
+          <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#0F172A', lineHeight: 1.25, letterSpacing: '-0.02em' }}>
             {title}
           </h2>
           {subtitle && (
-            <p style={{ fontSize: '12.5px', color: '#64748B', marginTop: '2px', fontWeight: 400 }}>
+            <p style={{ fontSize: '13.5px', color: '#64748B', marginTop: '2px', fontWeight: 400 }}>
               {subtitle}
             </p>
           )}
@@ -77,17 +77,17 @@ export const Header: React.FC<HeaderProps> = ({
             display: 'flex',
             alignItems: 'center',
             gap: '7px',
-            padding: '6px 14px',
+            padding: '7px 15px',
             borderRadius: 'var(--radius-full)',
             background: '#F8FAFC',
             border: '1px solid #E2E8F0',
-            fontSize: '12.5px',
+            fontSize: '13px',
             fontWeight: 500,
             color: '#475569'
           }}
           className="date-pill"
         >
-          <Calendar size={13} style={{ color: '#64748B' }} />
+          <Calendar size={14} style={{ color: '#64748B' }} />
           <span>{todayFormatted || 'Senin, 26 Okt 2026'}</span>
         </div>
       </div>

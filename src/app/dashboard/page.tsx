@@ -47,7 +47,7 @@ export default function DashboardPage() {
       {/* Action Header */}
       <div className="page-header-box" style={{ marginBottom: '20px' }}>
         <div>
-          <p style={{ fontSize: '13px', color: '#64748B' }}>
+          <p style={{ fontSize: '13.5px', color: '#64748B' }}>
             Pantau pergerakan stok toko secara langsung
           </p>
         </div>
@@ -127,10 +127,10 @@ export default function DashboardPage() {
               <AlertTriangle size={18} />
             </div>
             <div>
-              <h3 style={{ fontSize: '15.5px', fontWeight: 700, color: '#0F172A' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0F172A' }}>
                 Produk Stok Menipis
               </h3>
-              <p style={{ fontSize: '12px', color: '#64748B' }}>
+              <p style={{ fontSize: '13px', color: '#64748B' }}>
                 Barang dengan jumlah stok di bawah batas minimum
               </p>
             </div>
@@ -142,7 +142,7 @@ export default function DashboardPage() {
               display: 'flex',
               alignItems: 'center',
               gap: '5px',
-              fontSize: '13px',
+              fontSize: '13.5px',
               fontWeight: 600,
               color: '#0F172A',
               transition: 'all var(--transition-fast)'
@@ -177,17 +177,17 @@ export default function DashboardPage() {
                 <tr>
                   <td colSpan={3} style={{ textAlign: 'center', padding: '36px', color: '#059669' }}>
                     <CheckCircle2 size={26} style={{ margin: '0 auto 6px', display: 'block' }} />
-                    <span style={{ fontWeight: 600, fontSize: '13px' }}>Semua stok dalam batas aman.</span>
+                    <span style={{ fontWeight: 600, fontSize: '13.5px' }}>Semua stok dalam batas aman.</span>
                   </td>
                 </tr>
               ) : (
                 stats.low_stock_products.map((item) => (
                   <tr key={item.id}>
                     <td>
-                      <div style={{ fontWeight: 600, color: '#0F172A', fontSize: '13.5px' }}>
+                      <div style={{ fontWeight: 600, color: '#0F172A', fontSize: '14.5px' }}>
                         {item.name}
                       </div>
-                      <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>
+                      <div style={{ fontSize: '13px', color: '#64748B', marginTop: '2px' }}>
                         Batas minimum: {item.stock_minimum} {item.unit}
                         {item.qty_per_karton ? ` · ${item.qty_per_karton} ${item.unit}/karton` : ''}
                       </div>
@@ -195,9 +195,9 @@ export default function DashboardPage() {
                     <td>
                       <span
                         style={{
-                          fontSize: '11.5px',
+                          fontSize: '12.5px',
                           fontWeight: 500,
-                          padding: '3px 8px',
+                          padding: '3px 10px',
                           borderRadius: 'var(--radius-sm)',
                           background: '#F1F5F9',
                           border: '1px solid #E2E8F0',
