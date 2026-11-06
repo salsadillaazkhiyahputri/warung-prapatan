@@ -157,9 +157,9 @@ export default function SupplierPage() {
         <table className="data-table">
           <thead>
             <tr>
-              <th style={{ width: '40%' }}>Nama supplier</th>
-              <th style={{ width: '25%' }}>Jml transaksi</th>
-              <th style={{ width: '25%' }}>Terakhir masuk</th>
+              <th style={{ width: '40%' }}>Nama Supplier</th>
+              <th style={{ width: '25%' }}>Jumlah Transaksi</th>
+              <th style={{ width: '25%' }}>Terakhir Masuk</th>
               <th style={{ width: '10%', textAlign: 'center' }}>Aksi</th>
             </tr>
           </thead>

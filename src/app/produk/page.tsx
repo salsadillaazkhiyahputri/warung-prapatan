@@ -474,11 +474,11 @@ export default function ProdukPage() {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Satuan Ecer *</label>
+              <label className="form-label">Satuan Eceran *</label>
               <input
                 type="text"
                 className="form-input"
-                placeholder="pcs / bks / btl"
+                placeholder="pcs / bungkus / botol"
                 value={formData.unit}
                 onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
                 required
@@ -611,10 +611,11 @@ export default function ProdukPage() {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Satuan Ecer *</label>
+              <label className="form-label">Satuan Eceran *</label>
               <input
                 type="text"
                 className="form-input"
+                placeholder="pcs / bungkus / botol"
                 value={formData.unit}
                 onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
                 required

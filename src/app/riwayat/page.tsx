@@ -734,7 +734,7 @@ export default function RiwayatPage() {
                 value={manualForm.unit_mode}
                 onChange={(e) => setManualForm({ ...manualForm, unit_mode: e.target.value })}
               >
-                <option value="pcs">Satuan Ecer (pcs)</option>
+                <option value="pcs">Satuan Eceran (pcs)</option>
                 <option value="karton">Karton / Dus</option>
               </select>
             </div>
