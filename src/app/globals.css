@@ -142,8 +142,8 @@ input, select, textarea {
 }
 
 .page-wrapper {
-  padding: 28px 36px;
-  max-width: 1400px;
+  padding: 28px 32px 48px;
+  max-width: 1240px;
   width: 100%;
   margin: 0 auto;
 }
@@ -152,6 +152,38 @@ input, select, textarea {
   .page-wrapper {
     padding: 16px 14px;
   }
+}
+
+/* Interactive Export Option Cards */
+.export-option-card {
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.export-option-card:hover {
+  transform: translateY(-1.5px);
+  box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.08);
+}
+.export-option-excel:hover {
+  border-color: #10B981 !important;
+  background: #F0FDF4 !important;
+}
+.export-option-excel:hover .export-btn-arrow {
+  background: #059669 !important;
+  color: #FFFFFF !important;
+  border-color: #059669 !important;
+}
+.export-option-pdf:hover {
+  border-color: #EF4444 !important;
+  background: #FFF1F2 !important;
+}
+.export-option-pdf:hover .export-btn-arrow {
+  background: #DC2626 !important;
+  color: #FFFFFF !important;
+  border-color: #DC2626 !important;
+}
+
+.export-dropdown-item:hover {
+  background: #F1F5F9 !important;
 }
 
 /* Page Header & Typography */

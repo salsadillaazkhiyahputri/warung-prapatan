@@ -41,7 +41,7 @@ export default function DashboardPage() {
 
   return (
     <DashboardLayout
-      title="Dashboard Utama"
+      title="Dashboard"
       subtitle="Ringkasan ketersediaan stok barang dan transaksi toko"
     >
       {/* Action Header */}

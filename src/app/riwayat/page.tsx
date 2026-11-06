@@ -17,7 +17,9 @@ import {
   PlusCircle,
   Receipt,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  ArrowDownToLine,
+  ChevronDown
 } from 'lucide-react';
 
 export default function RiwayatPage() {
@@ -31,8 +33,8 @@ export default function RiwayatPage() {
   const [selectedProductId, setSelectedProductId] = useState('all');
   const [selectedType, setSelectedType] = useState<'all' | TransactionType>('all');
 
-  // Export Modal state
-  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  // Export state
+  const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
@@ -124,7 +126,6 @@ export default function RiwayatPage() {
       a.click();
       document.body.removeChild(a);
 
-      setIsExportModalOpen(false);
       showToast(`Laporan ${format.toUpperCase()} berhasil diunduh`);
     } catch (err) {
       console.error('Gagal mengunduh:', err);
@@ -216,7 +217,7 @@ export default function RiwayatPage() {
 
   return (
     <DashboardLayout
-      title="Riwayat Transaksi Stok"
+      title="Riwayat transaksi"
       subtitle="Catatan aktivitas keluar masuk barang toko"
     >
       {/* Toast Notification */}
@@ -281,13 +282,132 @@ export default function RiwayatPage() {
             <span>Catat Manual</span>
           </button>
 
-          <button
-            onClick={() => setIsExportModalOpen(true)}
-            className="btn btn-primary btn-sm"
-          >
-            <Download size={15} />
-            <span>Ekspor Laporan</span>
-          </button>
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setIsExportDropdownOpen(prev => !prev)}
+              className="btn btn-primary btn-sm"
+              disabled={isExporting}
+              style={{ gap: '6px' }}
+            >
+              <Download size={14} />
+              <span>{isExporting ? 'Mengunduh...' : 'Ekspor'}</span>
+              <ChevronDown size={14} />
+            </button>
+
+            {isExportDropdownOpen && (
+              <>
+                <div
+                  style={{
+                    position: 'fixed',
+                    inset: 0,
+                    zIndex: 40
+                  }}
+                  onClick={() => setIsExportDropdownOpen(false)}
+                />
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 6px)',
+                    right: 0,
+                    zIndex: 50,
+                    width: '230px',
+                    background: '#FFFFFF',
+                    border: '1px solid #E2E8F0',
+                    borderRadius: '10px',
+                    boxShadow: '0 10px 15px -3px rgba(15, 23, 42, 0.12), 0 4px 6px -4px rgba(15, 23, 42, 0.06)',
+                    padding: '6px',
+                    animation: 'fadeIn 0.12s ease'
+                  }}
+                >
+                  <button
+                    onClick={() => {
+                      setIsExportDropdownOpen(false);
+                      handleExportSubmit('xlsx');
+                    }}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      padding: '9px 12px',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      color: '#0F172A',
+                      background: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                      textAlign: 'left'
+                    }}
+                    className="export-dropdown-item"
+                  >
+                    <div
+                      style={{
+                        width: '28px',
+                        height: '28px',
+                        borderRadius: '6px',
+                        background: '#ECFDF5',
+                        border: '1px solid #A7F3D0',
+                        color: '#059669',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                    >
+                      <FileSpreadsheet size={16} />
+                    </div>
+                    <div>
+                      <span style={{ display: 'block', lineHeight: 1.2 }}>Unduh Excel (.xlsx)</span>
+                      <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 400 }}>Spreadsheet rekap KPI</span>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setIsExportDropdownOpen(false);
+                      handleExportSubmit('pdf');
+                    }}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      padding: '9px 12px',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      color: '#0F172A',
+                      background: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                      textAlign: 'left'
+                    }}
+                    className="export-dropdown-item"
+                  >
+                    <div
+                      style={{
+                        width: '28px',
+                        height: '28px',
+                        borderRadius: '6px',
+                        background: '#FEF2F2',
+                        border: '1px solid #FECACA',
+                        color: '#DC2626',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                    >
+                      <FileText size={16} />
+                    </div>
+                    <div>
+                      <span style={{ display: 'block', lineHeight: 1.2 }}>Unduh PDF (.pdf)</span>
+                      <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 400 }}>Dokumen A4 siap cetak</span>
+                    </div>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -487,16 +607,16 @@ export default function RiwayatPage() {
         </div>
       </div>
 
-      {/* Tabel Riwayat Transaksi */}
+      {/* Tabel Riwayat Transaksi Sesuai Proposal */}
       <div className="table-container">
         <table className="data-table">
           <thead>
             <tr>
-              <th style={{ width: '18%' }}>Tanggal & Waktu</th>
-              <th style={{ width: '12%' }}>Jenis</th>
+              <th style={{ width: '22%' }}>Tanggal</th>
               <th style={{ width: '28%' }}>Produk</th>
-              <th style={{ width: '14%', textAlign: 'right' }}>Jumlah</th>
-              <th style={{ width: '28%' }}>Supplier / Catatan</th>
+              <th style={{ width: '16%' }}>Jenis</th>
+              <th style={{ width: '16%' }}>Jumlah</th>
+              <th style={{ width: '18%' }}>Supplier</th>
             </tr>
           </thead>
           <tbody>
@@ -525,19 +645,19 @@ export default function RiwayatPage() {
                       {formatDateTime(tx.created_at)}
                     </td>
                     <td>
-                      <Badge type={isIn ? 'in' : 'out'}>
-                        {isIn ? 'Masuk (+)' : 'Keluar (-)'}
-                      </Badge>
-                    </td>
-                    <td>
                       <span style={{ fontWeight: 600, color: '#0F172A', fontSize: '13.5px' }}>
                         {tx.product?.name || `Produk #${tx.product_id}`}
                       </span>
                     </td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td>
+                      <Badge type={isIn ? 'in' : 'out'}>
+                        {isIn ? 'Masuk' : 'Keluar'}
+                      </Badge>
+                    </td>
+                    <td>
                       <span
                         style={{
-                          fontWeight: 700,
+                          fontWeight: 600,
                           fontSize: '13.5px',
                           color: isIn ? '#059669' : '#DC2626'
                         }}
@@ -546,22 +666,9 @@ export default function RiwayatPage() {
                       </span>
                     </td>
                     <td>
-                      <div style={{ color: '#475569', fontSize: '13px' }}>
-                        {tx.supplier?.name ? (
-                          <span style={{ fontWeight: 500, color: '#0F172A' }}>
-                            {tx.supplier.name}
-                          </span>
-                        ) : tx.note ? (
-                          <span>{tx.note}</span>
-                        ) : (
-                          <span style={{ color: '#94A3B8' }}>-</span>
-                        )}
-                        {tx.supplier?.name && tx.note && (
-                          <span style={{ color: '#94A3B8', marginLeft: '6px' }}>
-                            ({tx.note})
-                          </span>
-                        )}
-                      </div>
+                      <span style={{ color: isIn ? '#0F172A' : '#94A3B8', fontSize: '13px', fontWeight: isIn ? 500 : 400 }}>
+                        {isIn ? (tx.supplier?.name || '-') : '—'}
+                      </span>
                     </td>
                   </tr>
                 );
@@ -571,72 +678,12 @@ export default function RiwayatPage() {
         </table>
       </div>
 
-      {/* Modal Ekspor Laporan */}
-      <Modal
-        isOpen={isExportModalOpen}
-        onClose={() => setIsExportModalOpen(false)}
-        title="Ekspor Laporan Transaksi"
-        maxWidth="440px"
-      >
-        <div style={{ padding: '4px 0 16px' }}>
-          <p style={{ fontSize: '13px', color: '#64748B', marginBottom: '16px', lineHeight: 1.45 }}>
-            Unduh laporan transaksi sesuai filter tanggal dan produk yang sedang dipilih:
-          </p>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <button
-              onClick={() => handleExportSubmit('xlsx')}
-              disabled={isExporting}
-              className="btn btn-secondary"
-              style={{
-                width: '100%',
-                height: '46px',
-                justifyContent: 'flex-start',
-                padding: '0 16px',
-                fontSize: '13.5px'
-              }}
-            >
-              <FileSpreadsheet size={19} style={{ color: '#059669' }} />
-              <div style={{ textAlign: 'left', marginLeft: '8px' }}>
-                <span style={{ fontWeight: 600, display: 'block', color: '#0F172A' }}>Unduh Microsoft Excel (.xlsx)</span>
-                <span style={{ fontSize: '11.5px', color: '#64748B' }}>Format spreadsheet lengkap</span>
-              </div>
-            </button>
-
-            <button
-              onClick={() => handleExportSubmit('pdf')}
-              disabled={isExporting}
-              className="btn btn-secondary"
-              style={{
-                width: '100%',
-                height: '46px',
-                justifyContent: 'flex-start',
-                padding: '0 16px',
-                fontSize: '13.5px'
-              }}
-            >
-              <FileText size={19} style={{ color: '#DC2626' }} />
-              <div style={{ textAlign: 'left', marginLeft: '8px' }}>
-                <span style={{ fontWeight: 600, display: 'block', color: '#0F172A' }}>Unduh Dokumen PDF (.pdf)</span>
-                <span style={{ fontSize: '11.5px', color: '#64748B' }}>Format cetak siap pakai</span>
-              </div>
-            </button>
-          </div>
-
-          {isExporting && (
-            <p style={{ fontSize: '12px', color: '#0F172A', textAlign: 'center', marginTop: '12px' }}>
-              Sedang memproses laporan...
-            </p>
-          )}
-        </div>
-      </Modal>
-
       {/* Modal Catat Transaksi Manual */}
       <Modal
         isOpen={isManualModalOpen}
         onClose={() => setIsManualModalOpen(false)}
         title="Catat Transaksi Manual"
-        maxWidth="480px"
+        maxWidth="520px"
       >
         <form onSubmit={handleManualSubmit}>
           {manualError && (

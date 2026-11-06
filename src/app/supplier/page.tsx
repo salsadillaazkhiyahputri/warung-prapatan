@@ -226,7 +226,7 @@ export default function SupplierPage() {
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         title="Ubah Nama Supplier"
-        maxWidth="440px"
+        maxWidth="480px"
       >
         <form onSubmit={handleEditSubmit}>
           {errorMessage && (

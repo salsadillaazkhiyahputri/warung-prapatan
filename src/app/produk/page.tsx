@@ -421,7 +421,7 @@ export default function ProdukPage() {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         title="Tambah Produk Baru"
-        maxWidth="500px"
+        maxWidth="520px"
       >
         <form onSubmit={handleAddSubmit}>
           {formError && (
@@ -559,7 +559,7 @@ export default function ProdukPage() {
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         title="Ubah Data Produk"
-        maxWidth="500px"
+        maxWidth="520px"
       >
         <form onSubmit={handleEditSubmit}>
           {formError && (
@@ -695,7 +695,7 @@ export default function ProdukPage() {
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
         title="Konfirmasi Hapus"
-        maxWidth="420px"
+        maxWidth="440px"
       >
         <div style={{ textAlign: 'center', padding: '10px 0 20px' }}>
           <div

@@ -53,7 +53,7 @@ export const Modal: React.FC<ModalProps> = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '20px',
+        padding: '24px 20px',
         backgroundColor: 'rgba(15, 23, 42, 0.55)',
         backdropFilter: 'blur(4px)',
         animation: 'modalFadeIn 0.15s ease-out'
@@ -67,8 +67,8 @@ export const Modal: React.FC<ModalProps> = ({
           width: '100%',
           maxWidth,
           backgroundColor: '#FFFFFF',
-          borderRadius: '12px',
-          boxShadow: '0 20px 25px -5px rgba(15, 23, 42, 0.2), 0 8px 10px -6px rgba(15, 23, 42, 0.1)',
+          borderRadius: '14px',
+          boxShadow: '0 20px 25px -5px rgba(15, 23, 42, 0.18), 0 10px 10px -5px rgba(15, 23, 42, 0.08)',
           border: '1px solid #E2E8F0',
           display: 'flex',
           flexDirection: 'column',
@@ -85,7 +85,7 @@ export const Modal: React.FC<ModalProps> = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '16px 22px',
+            padding: '18px 24px',
             borderBottom: '1px solid #E2E8F0',
             background: '#F8FAFC'
           }}
@@ -99,9 +99,9 @@ export const Modal: React.FC<ModalProps> = ({
             style={{
               color: '#64748B',
               background: '#FFFFFF',
-              border: '1px solid #E2E8F0',
+              border: '1px solid #CBD5E1',
               padding: '6px',
-              borderRadius: '6px',
+              borderRadius: '7px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -116,7 +116,7 @@ export const Modal: React.FC<ModalProps> = ({
         </div>
 
         {/* Content */}
-        <div style={{ padding: '22px', overflowY: 'auto', background: '#FFFFFF' }}>
+        <div style={{ padding: '24px', overflowY: 'auto', background: '#FFFFFF' }}>
           {children}
         </div>
       </div>
