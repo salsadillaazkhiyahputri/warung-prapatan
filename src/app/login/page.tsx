@@ -72,61 +72,63 @@ export default function LoginPage() {
       <div className="login-card-balanced animate-fade-in">
         
         {/* ========================================================
-            SISI KIRI: Background Deep Navy Berombak Elegan (Tanpa Bola Biru)
+            SISI KIRI: Background Deep Navy (Logo Toko Bersebelahan & Posisi Tengah Vertikal)
             ======================================================== */}
         <div className="login-banner-left">
           <div className="login-banner-content">
-            {/* Ikon Toko Elegan (Tanpa Teks Capstone di Pojok Atas) */}
-            <div
-              style={{
-                width: '46px',
-                height: '46px',
-                borderRadius: '12px',
-                background: 'linear-gradient(135deg, #1E293B 0%, #334155 100%)',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#38BDF8',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
-                marginBottom: '26px'
-              }}
-            >
-              <Store size={22} />
+            {/* Logo Toko & Tulisan Warung Prapatan Bersebelahan */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '14px' }}>
+              <div
+                style={{
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '13px',
+                  background: 'linear-gradient(135deg, #1E293B 0%, #334155 100%)',
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#38BDF8',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+                  flexShrink: 0
+                }}
+              >
+                <Store size={24} />
+              </div>
+              <div>
+                <h1
+                  style={{
+                    fontSize: '24px',
+                    fontWeight: 800,
+                    letterSpacing: '-0.01em',
+                    color: '#FFFFFF',
+                    lineHeight: 1.2,
+                    margin: 0
+                  }}
+                >
+                  Warung Prapatan
+                </h1>
+                <span
+                  style={{
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    color: '#38BDF8',
+                    letterSpacing: '0.04em'
+                  }}
+                >
+                  Sistem Manajemen Stok
+                </span>
+              </div>
             </div>
-
-            <h1
-              style={{
-                fontSize: '30px',
-                fontWeight: 800,
-                letterSpacing: '0.04em',
-                color: '#FFFFFF',
-                lineHeight: 1.15,
-                margin: 0
-              }}
-            >
-              SELAMAT DATANG
-            </h1>
-
-            <h2
-              style={{
-                fontSize: '16px',
-                fontWeight: 700,
-                letterSpacing: '0.08em',
-                color: '#38BDF8',
-                marginTop: '8px',
-                textTransform: 'uppercase'
-              }}
-            >
-              WARUNG PRAPATAN
-            </h2>
 
             <p
               style={{
                 fontSize: '13.5px',
                 lineHeight: 1.65,
                 color: '#CBD5E1',
-                marginTop: '16px'
+                margin: '8px 0 0 0',
+                maxWidth: '360px',
+                textAlign: 'left'
               }}
             >
               Sistem pencatatan persediaan barang dan riwayat transaksi masuk-keluar toko secara terstruktur, cepat, dan akurat.
