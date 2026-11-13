@@ -72,11 +72,11 @@ export default function LoginPage() {
       <div className="login-card-balanced animate-fade-in">
         
         {/* ========================================================
-            SISI KIRI: Background Deep Navy (Logo Toko Bersebelahan & Posisi Tengah Vertikal)
+            SISI KIRI: Background Deep Navy (Logo & Warung Prapatan di Bagian Atas)
             ======================================================== */}
         <div className="login-banner-left">
           <div className="login-banner-content">
-            {/* Logo Toko & Tulisan Warung Prapatan Bersebelahan */}
+            {/* Logo Toko & Tulisan Warung Prapatan Bersebelahan di Bagian Atas */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '14px' }}>
               <div
                 style={{

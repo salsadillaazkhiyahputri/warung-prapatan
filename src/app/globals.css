@@ -475,11 +475,11 @@ input, select, textarea {
   min-height: 570px;
   position: relative;
   background: linear-gradient(145deg, #0B131F 0%, #0F172A 55%, #1E293B 100%);
-  padding: 48px 48px;
+  padding: 56px 48px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  justify-content: center;
+  justify-content: flex-start;
   text-align: left;
   overflow: hidden;
   border-top-right-radius: 120px 240px;
@@ -495,7 +495,7 @@ input, select, textarea {
   flex-direction: column;
   align-items: flex-start;
   text-align: left;
-  margin: auto 0;
+  margin: 0;
 }
 
 .login-card-right {
