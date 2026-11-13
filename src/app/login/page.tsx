@@ -9,7 +9,9 @@ import {
   ArrowRight,
   Shield,
   Check,
-  Store
+  Store,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 export default function LoginPage() {
@@ -66,46 +68,36 @@ export default function LoginPage() {
 
   return (
     <div className="login-page-viewport">
-      {/* Kartu Horizontal Ditengah Layar, Tidak Selayar Penuh & Tidak Terlalu Kecil */}
+      {/* Kartu Horizontal Ditengah Layar dengan Proporsi Pas & Sedikit Diperbesar */}
       <div className="login-card-balanced animate-fade-in">
         
         {/* ========================================================
-            SISI KIRI: Background Deep Navy Berombak & 3D Spheres
+            SISI KIRI: Background Deep Navy Berombak Elegan (Tanpa Bola Biru)
             ======================================================== */}
         <div className="login-banner-left">
-          {/* Bola 3D Gradien Biru Toko Sesuai Gambar Referensi */}
-          <div className="login-sphere-main" />
-          <div className="login-sphere-sub" />
-
           <div className="login-banner-content">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '11px', marginBottom: '24px' }}>
-              <div
-                style={{
-                  width: '42px',
-                  height: '42px',
-                  borderRadius: '11px',
-                  background: 'linear-gradient(135deg, #1E293B 0%, #334155 100%)',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#38BDF8',
-                  boxShadow: '0 4px 10px rgba(0, 0, 0, 0.25)'
-                }}
-              >
-                <Store size={20} />
-              </div>
-              <div>
-                <span style={{ fontSize: '12px', fontWeight: 600, color: '#38BDF8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                  Capstone 2 TI UMY
-                </span>
-                <p style={{ fontSize: '11.5px', color: '#94A3B8', marginTop: '1px' }}>Sistem Manajemen Stok Toko</p>
-              </div>
+            {/* Ikon Toko Elegan (Tanpa Teks Capstone di Pojok Atas) */}
+            <div
+              style={{
+                width: '46px',
+                height: '46px',
+                borderRadius: '12px',
+                background: 'linear-gradient(135deg, #1E293B 0%, #334155 100%)',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#38BDF8',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+                marginBottom: '26px'
+              }}
+            >
+              <Store size={22} />
             </div>
 
             <h1
               style={{
-                fontSize: '28px',
+                fontSize: '30px',
                 fontWeight: 800,
                 letterSpacing: '0.04em',
                 color: '#FFFFFF',
@@ -118,11 +110,11 @@ export default function LoginPage() {
 
             <h2
               style={{
-                fontSize: '15px',
+                fontSize: '16px',
                 fontWeight: 700,
                 letterSpacing: '0.08em',
                 color: '#38BDF8',
-                marginTop: '6px',
+                marginTop: '8px',
                 textTransform: 'uppercase'
               }}
             >
@@ -131,10 +123,10 @@ export default function LoginPage() {
 
             <p
               style={{
-                fontSize: '13px',
-                lineHeight: 1.6,
+                fontSize: '13.5px',
+                lineHeight: 1.65,
                 color: '#CBD5E1',
-                marginTop: '14px'
+                marginTop: '16px'
               }}
             >
               Sistem pencatatan persediaan barang dan riwayat transaksi masuk-keluar toko secara terstruktur, cepat, dan akurat.
@@ -143,17 +135,14 @@ export default function LoginPage() {
         </div>
 
         {/* ========================================================
-            SISI KANAN: Formulir Masuk 1-Role (Pemilik Toko)
+            SISI KANAN: Formulir Masuk 1-Role Pemilik Toko
             ======================================================== */}
         <div className="login-card-right">
-          {/* Aksen lingkaran kecil di sudut kanan bawah kartu */}
-          <div className="login-sphere-accent" />
-
           <div className="login-card-form">
-            <div style={{ marginBottom: '22px' }}>
+            <div style={{ marginBottom: '24px' }}>
               <h2
                 style={{
-                  fontSize: '25px',
+                  fontSize: '26px',
                   fontWeight: 800,
                   color: '#0F172A',
                   letterSpacing: '-0.02em',
@@ -164,7 +153,7 @@ export default function LoginPage() {
               </h2>
               <p
                 style={{
-                  fontSize: '13px',
+                  fontSize: '13.5px',
                   color: '#64748B',
                   marginTop: '5px',
                   lineHeight: 1.45
@@ -181,30 +170,30 @@ export default function LoginPage() {
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
-                  padding: '9px 12px',
+                  padding: '10px 14px',
                   background: '#FEF2F2',
                   border: '1px solid #FECACA',
                   borderRadius: '8px',
                   color: '#DC2626',
-                  fontSize: '12.5px',
+                  fontSize: '13px',
                   marginBottom: '16px'
                 }}
               >
-                <AlertCircle size={15} style={{ flexShrink: 0 }} />
+                <AlertCircle size={16} style={{ flexShrink: 0 }} />
                 <span>{errorMsg}</span>
               </div>
             )}
 
             <form onSubmit={handleLogin}>
               {/* Field Username */}
-              <div style={{ marginBottom: '15px' }}>
+              <div style={{ marginBottom: '16px' }}>
                 <label
                   style={{
                     display: 'block',
                     fontSize: '13px',
                     fontWeight: 600,
                     color: '#334155',
-                    marginBottom: '5px'
+                    marginBottom: '6px'
                   }}
                   htmlFor="username"
                 >
@@ -221,7 +210,7 @@ export default function LoginPage() {
                       pointerEvents: 'none'
                     }}
                   >
-                    <User size={16} />
+                    <User size={17} />
                   </span>
                   <input
                     id="username"
@@ -233,12 +222,12 @@ export default function LoginPage() {
                     required
                     style={{
                       width: '100%',
-                      height: '44px',
-                      padding: '0 14px 0 40px',
+                      height: '46px',
+                      padding: '0 14px 0 42px',
                       background: '#F8FAFC',
                       border: '1px solid #CBD5E1',
                       borderRadius: '10px',
-                      fontSize: '13.5px',
+                      fontSize: '14px',
                       color: '#0F172A',
                       outline: 'none',
                       transition: 'all 0.2s ease'
@@ -247,15 +236,15 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* Field Password */}
-              <div style={{ marginBottom: '15px' }}>
+              {/* Field Password dengan Toggle Icon Mata */}
+              <div style={{ marginBottom: '16px' }}>
                 <label
                   style={{
                     display: 'block',
                     fontSize: '13px',
                     fontWeight: 600,
                     color: '#334155',
-                    marginBottom: '5px'
+                    marginBottom: '6px'
                   }}
                   htmlFor="password"
                 >
@@ -272,7 +261,7 @@ export default function LoginPage() {
                       pointerEvents: 'none'
                     }}
                   >
-                    <Lock size={16} />
+                    <Lock size={17} />
                   </span>
                   <input
                     id="password"
@@ -284,12 +273,12 @@ export default function LoginPage() {
                     required
                     style={{
                       width: '100%',
-                      height: '44px',
-                      padding: '0 85px 0 40px',
+                      height: '46px',
+                      padding: '0 44px 0 42px',
                       background: '#F8FAFC',
                       border: '1px solid #CBD5E1',
                       borderRadius: '10px',
-                      fontSize: '13.5px',
+                      fontSize: '14px',
                       color: '#0F172A',
                       outline: 'none',
                       transition: 'all 0.2s ease'
@@ -300,30 +289,34 @@ export default function LoginPage() {
                     onClick={() => setShowPassword(!showPassword)}
                     style={{
                       position: 'absolute',
-                      right: '12px',
-                      fontSize: '10.5px',
-                      fontWeight: 700,
-                      letterSpacing: '0.04em',
-                      color: '#0F172A',
+                      right: '10px',
+                      color: '#64748B',
                       background: 'transparent',
                       border: 'none',
                       cursor: 'pointer',
-                      padding: '4px'
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '6px',
+                      borderRadius: '6px',
+                      transition: 'color 0.15s ease'
                     }}
+                    className="password-toggle-btn"
+                    title={showPassword ? 'Sembunyikan password' : 'Lihat password'}
                   >
-                    {showPassword ? 'SEMBUNYIKAN' : 'LIHAT'}
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
               </div>
 
               {/* Checkbox Ingat Saya */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '12.5px', color: '#475569', cursor: 'pointer', userSelect: 'none' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '22px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#475569', cursor: 'pointer', userSelect: 'none' }}>
                   <input
                     type="checkbox"
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
-                    style={{ accentColor: '#0F172A', cursor: 'pointer', width: '14px', height: '14px' }}
+                    style={{ accentColor: '#0F172A', cursor: 'pointer', width: '15px', height: '15px' }}
                   />
                   <span>Ingat akun di perangkat ini</span>
                 </label>
@@ -335,12 +328,12 @@ export default function LoginPage() {
                 disabled={isLoading}
                 style={{
                   width: '100%',
-                  height: '44px',
+                  height: '46px',
                   background: '#0F172A',
                   color: '#FFFFFF',
                   border: '1px solid #0F172A',
                   borderRadius: '10px',
-                  fontSize: '14px',
+                  fontSize: '14.5px',
                   fontWeight: 600,
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
@@ -348,19 +341,19 @@ export default function LoginPage() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '7px'
+                  gap: '8px'
                 }}
                 className="btn-navy-hover"
               >
                 {isLoading ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div style={{ width: '15px', height: '15px', border: '2px solid rgba(255, 255, 255, 0.3)', borderTopColor: '#FFFFFF', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+                    <div style={{ width: '16px', height: '16px', border: '2px solid rgba(255, 255, 255, 0.3)', borderTopColor: '#FFFFFF', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
                     <span>Memverifikasi...</span>
                   </div>
                 ) : (
                   <>
                     <span>Masuk ke Dashboard</span>
-                    <ArrowRight size={16} />
+                    <ArrowRight size={17} />
                   </>
                 )}
               </button>
@@ -369,8 +362,8 @@ export default function LoginPage() {
             {/* Kredensial Demo Rapi (1 Role Pemilik Toko) */}
             <div
               style={{
-                marginTop: '18px',
-                padding: '9px 12px',
+                marginTop: '20px',
+                padding: '10px 14px',
                 background: '#F8FAFC',
                 border: '1px solid #E2E8F0',
                 borderRadius: '8px',
@@ -380,7 +373,7 @@ export default function LoginPage() {
                 gap: '8px'
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Shield size={14} style={{ color: '#0F172A' }} />
                 <span style={{ fontSize: '12px', fontFamily: 'monospace', color: '#0F172A', fontWeight: 600 }}>
                   pemilik / warung123
@@ -395,7 +388,7 @@ export default function LoginPage() {
                   color: '#0F172A',
                   background: '#FFFFFF',
                   border: '1px solid #CBD5E1',
-                  padding: '3px 8px',
+                  padding: '4px 9px',
                   borderRadius: '5px',
                   cursor: 'pointer',
                   display: 'inline-flex',
@@ -418,10 +411,10 @@ export default function LoginPage() {
             {/* Footer Bawah */}
             <p
               style={{
-                fontSize: '11px',
+                fontSize: '12px',
                 color: '#94A3B8',
                 textAlign: 'center',
-                marginTop: '20px',
+                marginTop: '22px',
                 marginBottom: 0
               }}
             >
@@ -441,6 +434,9 @@ export default function LoginPage() {
           border-color: #1E293B !important;
           transform: translateY(-0.5px) !important;
           box-shadow: 0 4px 12px rgba(15, 23, 42, 0.25) !important;
+        }
+        .password-toggle-btn:hover {
+          color: #0F172A !important;
         }
       `}</style>
     </div>

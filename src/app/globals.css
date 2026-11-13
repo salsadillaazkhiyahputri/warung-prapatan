@@ -459,8 +459,8 @@ input, select, textarea {
 
 .login-card-balanced {
   width: 100%;
-  max-width: 960px;
-  min-height: 520px;
+  max-width: 1040px;
+  min-height: 570px;
   background: #FFFFFF;
   border-radius: 28px;
   display: flex;
@@ -472,49 +472,23 @@ input, select, textarea {
 
 .login-banner-left {
   flex: 0.95;
-  min-height: 520px;
+  min-height: 570px;
   position: relative;
   background: linear-gradient(145deg, #0B131F 0%, #0F172A 55%, #1E293B 100%);
-  padding: 52px 42px;
+  padding: 56px 48px;
   display: flex;
   flex-direction: column;
-  justifyContent: flex-start;
+  justifyContent: center;
   overflow: hidden;
   border-top-right-radius: 120px 240px;
   border-bottom-right-radius: 120px 240px;
   z-index: 2;
 }
 
-.login-sphere-main {
-  position: absolute;
-  bottom: -35px;
-  right: 20px;
-  width: 195px;
-  height: 195px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #38BDF8 0%, #0284C7 35%, #0F172A 80%, #020617 100%);
-  box-shadow: -10px 14px 28px rgba(0, 0, 0, 0.5);
-  z-index: 1;
-  pointer-events: none;
-}
-
-.login-sphere-sub {
-  position: absolute;
-  bottom: -40px;
-  left: -30px;
-  width: 175px;
-  height: 175px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #0EA5E9 0%, #1E293B 55%, #0B131F 100%);
-  opacity: 0.9;
-  z-index: 0;
-  pointer-events: none;
-}
-
 .login-banner-content {
   position: relative;
   z-index: 3;
-  max-width: 340px;
+  max-width: 380px;
 }
 
 .login-card-right {
@@ -523,27 +497,14 @@ input, select, textarea {
   display: flex;
   align-items: center;
   justifyContent: center;
-  padding: 44px 48px;
+  padding: 48px 56px;
   position: relative;
   overflow: hidden;
 }
 
-.login-sphere-accent {
-  position: absolute;
-  bottom: -45px;
-  right: -45px;
-  width: 140px;
-  height: 140px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #38BDF8 0%, #0F172A 70%, #020617 100%);
-  z-index: 1;
-  pointer-events: none;
-  opacity: 0.9;
-}
-
 .login-card-form {
   width: 100%;
-  max-width: 360px;
+  max-width: 390px;
   position: relative;
   z-index: 2;
 }
@@ -551,22 +512,16 @@ input, select, textarea {
 @media (max-width: 860px) {
   .login-card-balanced {
     flex-direction: column;
-    max-width: 460px;
+    max-width: 480px;
     border-radius: 22px;
   }
   .login-banner-left {
     min-height: auto;
-    padding: 40px 30px 48px;
+    padding: 40px 30px 44px;
     border-top-right-radius: 0;
     border-bottom-right-radius: 0;
     border-bottom-left-radius: 40px;
     border-bottom-right-radius: 40px;
-  }
-  .login-sphere-main {
-    width: 140px;
-    height: 140px;
-    right: 15px;
-    bottom: -20px;
   }
   .login-card-right {
     padding: 36px 28px;
