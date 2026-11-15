@@ -1,36 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AuthService } from '@/lib/db';
-import { createSessionToken, AUTH_COOKIE_OPTIONS, LoginRateLimiter } from '@/lib/auth';
-import { readJson, cleanText, BusinessError } from '@/lib/validate';
+import { createSessionToken, AUTH_COOKIE_OPTIONS } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await readJson<{ username?: unknown; password?: unknown }>(req);
-    const username = cleanText(body.username, 'Username', 100, 1);
-    const password = cleanText(body.password, 'Password', 100, 1);
+    const body = await req.json();
+    const { username, password } = body;
 
-    // Cek batas percobaan gagal (Rate Limiting)
-    const rateCheck = LoginRateLimiter.check(username);
-    if (!rateCheck.allowed) {
+    if (!username || !password) {
       return NextResponse.json(
-        {
-          error: `Terlalu banyak percobaan login yang gagal. Akun dibatasi sementara, silakan coba lagi dalam ${rateCheck.waitMinutes || 15} menit.`
-        },
-        { status: 429 }
+        { error: 'Username dan password wajib diisi' },
+        { status: 400 }
       );
     }
 
     const user = await AuthService.login(username, password);
     if (!user) {
-      LoginRateLimiter.recordFailure(username);
-      // Pesan tidak membocorkan apakah username ada
       return NextResponse.json(
         { error: 'Username atau password salah' },
         { status: 401 }
       );
     }
-
-    LoginRateLimiter.recordSuccess(username);
 
     const token = createSessionToken(user);
     const response = NextResponse.json({
@@ -48,11 +38,11 @@ export async function POST(req: NextRequest) {
     });
 
     return response;
-  } catch (err: any) {
-    if (err instanceof BusinessError) {
-      return NextResponse.json({ error: err.message }, { status: err.status });
-    }
-    console.error('Error saat login:', err);
-    return NextResponse.json({ error: 'Terjadi kesalahan pada server' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Error saat login:', error);
+    return NextResponse.json(
+      { error: 'Terjadi kesalahan pada server' },
+      { status: 500 }
+    );
   }
 }

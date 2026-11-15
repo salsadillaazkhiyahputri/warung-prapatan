@@ -8,9 +8,9 @@ import {
   Package,
   Truck,
   History,
-  ClipboardCheck,
   LogOut,
-  Store
+  Store,
+  ChevronRight
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -36,7 +36,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
     }
   };
 
-  // Tepat 5 menu sesuai Bagian 3 & 5
   const navItems = [
     {
       label: 'Dashboard',
@@ -57,11 +56,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
       label: 'Riwayat Transaksi',
       href: '/riwayat',
       icon: <History size={18} />
-    },
-    {
-      label: 'Stok Opname',
-      href: '/opname',
-      icon: <ClipboardCheck size={18} />
     }
   ];
 
@@ -139,10 +133,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
             </div>
           </div>
 
-          {/* Navigation Items (Tepat 5 Menu) */}
+          {/* Navigation Items */}
           <nav style={{ padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
             {navItems.map((item) => {
-              const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+              const isActive = pathname === item.href;
               return (
                 <Link
                   key={item.href}

@@ -1,14 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ProductService } from '@/lib/db';
-import { getCurrentUser } from '@/lib/auth';
-import { readJson, cleanText, parseInteger, validateCategory, BusinessError } from '@/lib/validate';
 
 export async function GET(req: NextRequest) {
-  const user = await getCurrentUser();
-  if (!user) {
-    return NextResponse.json({ error: 'Tidak terautentikasi' }, { status: 401 });
-  }
-
   try {
     const { searchParams } = new URL(req.url);
     const q = searchParams.get('q') || undefined;
@@ -23,47 +16,36 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const user = await getCurrentUser();
-  if (!user) {
-    return NextResponse.json({ error: 'Tidak terautentikasi' }, { status: 401 });
-  }
-
   try {
-    const body = await readJson<Record<string, unknown>>(req);
+    const body = await req.json();
+    const { name, category, unit, qty_per_karton, stock_current, stock_minimum } = body;
 
-    const name = cleanText(body.name, 'Nama produk', 100, 1);
-    const existingCats = await ProductService.getCategories();
-    const category = validateCategory(body.category, existingCats);
-
-    const stockCurrent = parseInteger(
-      body.stock_current !== undefined && body.stock_current !== null ? body.stock_current : 0,
-      'Stok awal',
-      0,
-      10000000
-    );
-
-    const stockMinimum = parseInteger(
-      body.stock_minimum !== undefined && body.stock_minimum !== null ? body.stock_minimum : 10,
-      'Batas minimum stok',
-      0,
-      10000000
-    );
+    if (!name || !name.trim()) {
+      return NextResponse.json({ error: 'Nama produk wajib diisi' }, { status: 400 });
+    }
+    if (!category || !category.trim()) {
+      return NextResponse.json({ error: 'Kategori produk wajib diisi' }, { status: 400 });
+    }
+    if (stock_minimum !== undefined && (!Number.isInteger(Number(stock_minimum)) || Number(stock_minimum) < 0)) {
+      return NextResponse.json({ error: 'Batas stok menipis harus berupa angka bulat minimal 0' }, { status: 400 });
+    }
+    if (qty_per_karton !== null && qty_per_karton !== undefined &&
+      (!Number.isInteger(Number(qty_per_karton)) || Number(qty_per_karton) < 1)) {
+      return NextResponse.json({ error: 'Isi per karton harus berupa angka bulat minimal 1 atau dikosongkan' }, { status: 400 });
+    }
 
     const newProduct = await ProductService.create({
-      name,
-      category,
-      unit: 'pcs',
-      qty_per_karton: null,
-      stock_current: stockCurrent,
-      stock_minimum: stockMinimum
+      name: name.trim(),
+      category: category.trim(),
+      unit: unit?.trim() || 'pcs',
+      qty_per_karton: qty_per_karton ? Number(qty_per_karton) : null,
+      stock_current: Math.max(0, Number(stock_current) || 0),
+      stock_minimum: Number(stock_minimum ?? 10)
     });
 
     return NextResponse.json(newProduct, { status: 201 });
-  } catch (err: any) {
-    if (err instanceof BusinessError) {
-      return NextResponse.json({ error: err.message }, { status: err.status });
-    }
-    console.error('Error creating product:', err);
+  } catch (error) {
+    console.error('Error creating product:', error);
     return NextResponse.json({ error: 'Gagal menambahkan produk' }, { status: 500 });
   }
 }

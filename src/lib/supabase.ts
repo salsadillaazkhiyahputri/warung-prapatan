@@ -1,34 +1,27 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 export const isSupabaseConfigured = Boolean(
-  supabaseUrl &&
-  supabaseServiceRoleKey &&
+  supabaseUrl && 
+  supabaseAnonKey && 
   supabaseUrl.startsWith('https://') &&
   !supabaseUrl.includes('your-project')
 );
 
-let cachedAdminClient: SupabaseClient | null = null;
+// Client-side / public Supabase client
+export const supabase = isSupabaseConfigured
+  ? createClient(supabaseUrl!, supabaseAnonKey!)
+  : null;
 
-/**
- * Mengembalikan Supabase client dengan hak akses service role (hanya dipanggil dari kode server).
- */
-export function getSupabaseAdmin(): SupabaseClient | null {
-  if (!isSupabaseConfigured) return null;
-
-  if (!cachedAdminClient) {
-    cachedAdminClient = createClient(supabaseUrl!, supabaseServiceRoleKey!, {
+// Server-side admin Supabase client with service role key if available
+export const supabaseAdmin = isSupabaseConfigured
+  ? createClient(supabaseUrl!, supabaseServiceRoleKey || supabaseAnonKey!, {
       auth: {
         autoRefreshToken: false,
         persistSession: false
       }
-    });
-  }
-
-  return cachedAdminClient;
-}
-
-// Backward compatibility alias for server code
-export const supabaseAdmin = getSupabaseAdmin();
+    })
+  : null;

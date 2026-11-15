@@ -13,14 +13,13 @@ import {
   AlertCircle,
   CheckCircle2,
   RefreshCw,
-  Clock
+  Boxes
 } from 'lucide-react';
 
-const FOURTEEN_DAYS_MS = 14 * 24 * 60 * 60 * 1000;
+const CATEGORIES = ['Semua', 'Mie', 'Sabun', 'Bumbu', 'Minuman', 'Sembako'];
 
 export default function ProdukPage() {
   const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Semua');
@@ -31,11 +30,12 @@ export default function ProdukPage() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
-  // Form states (tanpa supplier dan tanpa karton)
+  // Form states
   const [formData, setFormData] = useState({
     name: '',
-    category: 'Makanan',
-    customCategory: '',
+    category: 'Mie',
+    unit: 'pcs',
+    qty_per_karton: null as number | null,
     stock_current: 0,
     stock_minimum: 10
   });
@@ -43,18 +43,6 @@ export default function ProdukPage() {
   const [formError, setFormError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
-
-  const fetchCategories = async () => {
-    try {
-      const res = await fetch('/api/categories');
-      if (res.ok) {
-        const data = await res.json();
-        setCategories(data);
-      }
-    } catch (err) {
-      console.error('Error fetching categories:', err);
-    }
-  };
 
   const fetchProducts = async () => {
     setIsLoading(true);
@@ -78,10 +66,6 @@ export default function ProdukPage() {
   };
 
   useEffect(() => {
-    fetchCategories();
-  }, []);
-
-  useEffect(() => {
     fetchProducts();
   }, [selectedCategory]);
 
@@ -95,25 +79,13 @@ export default function ProdukPage() {
     setTimeout(() => setToastMessage(''), 3000);
   };
 
-  const formatLastCounted = (dateStr?: string | null) => {
-    if (!dateStr) {
-      return { text: 'Belum pernah', isUrgent: true };
-    }
-    const diffMs = Date.now() - new Date(dateStr).getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    const isUrgent = diffMs > FOURTEEN_DAYS_MS;
-
-    if (diffDays <= 0) return { text: 'Hari ini', isUrgent: false };
-    if (diffDays === 1) return { text: 'Kemarin', isUrgent: false };
-    return { text: `${diffDays} hari lalu`, isUrgent };
-  };
-
   // 1. Tambah Produk
   const openAddModal = () => {
     setFormData({
       name: '',
-      category: categories[0] || 'Makanan',
-      customCategory: '',
+      category: 'Mie',
+      unit: 'pcs',
+      qty_per_karton: null,
       stock_current: 0,
       stock_minimum: 10
     });
@@ -125,15 +97,8 @@ export default function ProdukPage() {
     e.preventDefault();
     setFormError('');
 
-    const resolvedCategory =
-      formData.category === 'Lainnya' ? formData.customCategory.trim() : formData.category;
-
     if (!formData.name.trim()) {
       setFormError('Nama produk wajib diisi');
-      return;
-    }
-    if (!resolvedCategory) {
-      setFormError('Kategori produk wajib diisi');
       return;
     }
 
@@ -142,13 +107,7 @@ export default function ProdukPage() {
       const res = await fetch('/api/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: formData.name.trim(),
-          category: resolvedCategory,
-          unit: 'pcs',
-          stock_current: formData.stock_current,
-          stock_minimum: formData.stock_minimum
-        })
+        body: JSON.stringify(formData)
       });
 
       const data = await res.json();
@@ -161,7 +120,6 @@ export default function ProdukPage() {
       setIsAddModalOpen(false);
       showToast(`Produk "${formData.name}" berhasil ditambahkan`);
       fetchProducts();
-      fetchCategories();
     } catch {
       setFormError('Terjadi kesalahan pada server');
     } finally {
@@ -169,14 +127,14 @@ export default function ProdukPage() {
     }
   };
 
-  // 2. Edit Produk (Stok TIDAK BISA diubah)
+  // 2. Edit Produk
   const openEditModal = (product: Product) => {
     setSelectedProduct(product);
-    const isStandardCat = categories.includes(product.category);
     setFormData({
       name: product.name,
-      category: isStandardCat ? product.category : 'Lainnya',
-      customCategory: isStandardCat ? '' : product.category,
+      category: product.category,
+      unit: product.unit,
+      qty_per_karton: product.qty_per_karton,
       stock_current: product.stock_current,
       stock_minimum: product.stock_minimum
     });
@@ -189,15 +147,8 @@ export default function ProdukPage() {
     if (!selectedProduct) return;
     setFormError('');
 
-    const resolvedCategory =
-      formData.category === 'Lainnya' ? formData.customCategory.trim() : formData.category;
-
     if (!formData.name.trim()) {
       setFormError('Nama produk wajib diisi');
-      return;
-    }
-    if (!resolvedCategory) {
-      setFormError('Kategori produk wajib diisi');
       return;
     }
 
@@ -206,11 +157,7 @@ export default function ProdukPage() {
       const res = await fetch(`/api/products/${selectedProduct.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: formData.name.trim(),
-          category: resolvedCategory,
-          stock_minimum: formData.stock_minimum
-        })
+        body: JSON.stringify(formData)
       });
 
       const data = await res.json();
@@ -223,7 +170,6 @@ export default function ProdukPage() {
       setIsEditModalOpen(false);
       showToast(`Produk "${formData.name}" berhasil diperbarui`);
       fetchProducts();
-      fetchCategories();
     } catch {
       setFormError('Terjadi kesalahan pada server');
     } finally {
@@ -231,13 +177,13 @@ export default function ProdukPage() {
     }
   };
 
-  // 3. Hapus (Nonaktifkan) Produk
+  // 3. Hapus Produk
   const openDeleteModal = (product: Product) => {
     setSelectedProduct(product);
     setIsDeleteModalOpen(true);
   };
 
-  const handleDeleteSubmit = async () => {
+  const handleDeleteConfirm = async () => {
     if (!selectedProduct) return;
     setIsSaving(true);
     try {
@@ -245,18 +191,15 @@ export default function ProdukPage() {
         method: 'DELETE'
       });
 
-      if (!res.ok) {
-        const data = await res.json();
-        alert(data.error || 'Gagal menghapus produk');
-        setIsSaving(false);
-        return;
+      if (res.ok) {
+        setIsDeleteModalOpen(false);
+        showToast(`Produk "${selectedProduct.name}" berhasil dihapus`);
+        fetchProducts();
+      } else {
+        alert('Gagal menghapus produk');
       }
-
-      setIsDeleteModalOpen(false);
-      showToast(`Produk "${selectedProduct.name}" berhasil dinonaktifkan`);
-      fetchProducts();
     } catch {
-      alert('Terjadi kesalahan pada server');
+      alert('Terjadi kesalahan saat menghapus');
     } finally {
       setIsSaving(false);
     }
@@ -265,7 +208,7 @@ export default function ProdukPage() {
   return (
     <DashboardLayout
       title="Produk"
-      subtitle="Katalog barang toko, stok saat ini (pcs), dan kapan terakhir dihitung lewat stok opname"
+      subtitle="Katalog barang toko, stok saat ini, dan konversi satuan karton"
     >
       {/* Toast Notification */}
       {toastMessage && (
@@ -294,397 +237,522 @@ export default function ProdukPage() {
         </div>
       )}
 
-      {/* Control Box: Search, Filter, Add */}
-      <div className="page-header-box" style={{ marginBottom: '20px' }}>
-        <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '10px', flex: 1, maxWidth: '520px' }}>
-          <div style={{ position: 'relative', flex: 1 }}>
-            <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94A3B8' }}>
-              <Search size={16} />
+      {/* Toolbar: Search, Category Dropdown & Action Buttons */}
+      <div className="page-header-box" style={{ marginBottom: '22px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: '1', maxWidth: '640px', flexWrap: 'wrap' }}>
+          <form
+            onSubmit={handleSearchSubmit}
+            style={{
+              position: 'relative',
+              flex: '1',
+              minWidth: '220px'
+            }}
+          >
+            <span
+              style={{
+                position: 'absolute',
+                left: '12px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: '#94A3B8',
+                display: 'flex',
+                alignItems: 'center'
+              }}
+            >
+              <Search size={15} />
             </span>
             <input
               type="text"
-              className="input"
-              style={{ paddingLeft: '38px', height: '38px' }}
+              className="form-input"
+              style={{ paddingLeft: '38px', height: '40px', fontSize: '14px' }}
               placeholder="Cari produk..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
+          </form>
+
+          {/* Category Dropdown */}
+          <div style={{ width: '160px' }}>
+            <select
+              className="form-select"
+              style={{ height: '40px', fontSize: '14px' }}
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+            >
+              <option value="Semua">Semua Kategori</option>
+              <option value="Sembako">Sembako</option>
+              <option value="Minuman">Minuman</option>
+              <option value="Mie">Mie</option>
+              <option value="Bumbu">Bumbu</option>
+              <option value="Sabun">Sabun</option>
+            </select>
           </div>
+        </div>
 
-          <select
-            className="input"
-            style={{ width: '180px', height: '38px' }}
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-          >
-            <option value="Semua">Semua Kategori</option>
-            {categories.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </form>
-
+        {/* Action Buttons */}
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button onClick={fetchProducts} className="btn btn-secondary btn-sm" title="Segarkan Data">
+          <button
+            onClick={fetchProducts}
+            className="btn btn-secondary btn-sm"
+            title="Segarkan Data"
+          >
             <RefreshCw size={14} className={isLoading ? 'pulse' : ''} />
             <span>Segarkan</span>
           </button>
+
           <button onClick={openAddModal} className="btn btn-primary btn-sm">
-            <Plus size={16} />
+            <Plus size={15} />
             <span>Tambah produk</span>
           </button>
         </div>
       </div>
 
-      {/* Tabel Produk Utama: Nama, Kategori, Stok (pcs), Terakhir dihitung, Aksi */}
-      <div className="card" style={{ overflow: 'hidden' }}>
-        <div className="table-container">
-          <table className="table">
-            <thead>
+      {/* Tabel Data Produk Sesuai Proposal */}
+      <div className="table-container">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th style={{ width: '32%' }}>Nama</th>
+              <th style={{ width: '18%' }}>Kategori</th>
+              <th style={{ width: '14%' }}>Satuan</th>
+              <th style={{ width: '16%' }}>Per karton</th>
+              <th style={{ width: '12%' }}>Stok</th>
+              <th style={{ width: '80px', textAlign: 'center' }}>Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            {isLoading ? (
               <tr>
-                <th style={{ width: '32%' }}>NAMA</th>
-                <th style={{ width: '22%' }}>KATEGORI</th>
-                <th style={{ width: '18%' }}>STOK</th>
-                <th style={{ width: '18%' }}>TERAKHIR DIHITUNG</th>
-                <th style={{ width: '10%', textAlign: 'center' }}>AKSI</th>
+                <td colSpan={6} style={{ textAlign: 'center', padding: '36px', color: '#94A3B8' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                    <div style={{ width: '16px', height: '16px', borderRadius: '50%', border: '2px solid #CBD5E1', borderTopColor: '#0F172A', animation: 'spin 0.6s linear infinite' }} />
+                    <span>Memuat data produk...</span>
+                  </div>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr>
-                  <td colSpan={5} style={{ textAlign: 'center', padding: '48px', color: '#94A3B8' }}>
-                    Memuat katalog produk...
-                  </td>
-                </tr>
-              ) : products.length === 0 ? (
-                <tr>
-                  <td colSpan={5} style={{ textAlign: 'center', padding: '48px', color: '#64748B' }}>
-                    Tidak ada produk ditemukan.
-                  </td>
-                </tr>
-              ) : (
-                products.map((product) => {
-                  const lastCount = formatLastCounted(product.last_counted_at);
-                  const isLow = product.stock_current <= product.stock_minimum;
+            ) : products.length === 0 ? (
+              <tr>
+                <td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>
+                  <Boxes size={32} style={{ color: '#94A3B8', margin: '0 auto 8px', display: 'block' }} />
+                  <span>Tidak ada produk yang sesuai.</span>
+                </td>
+              </tr>
+            ) : (
+              products.map((item) => {
+                const isLowStock = item.stock_current <= item.stock_minimum;
 
-                  return (
-                    <tr key={product.id}>
-                      <td style={{ fontWeight: 600, color: '#0F172A' }}>
-                        {product.name}
-                      </td>
-                      <td style={{ color: '#475569' }}>
-                        {product.category}
-                      </td>
-                      <td>
-                        <span
+                return (
+                  <tr key={item.id}>
+                    <td>
+                      <div style={{ fontWeight: 600, color: '#0F172A', fontSize: '14.5px' }}>
+                        {item.name}
+                      </div>
+                    </td>
+                    <td style={{ color: '#334155', fontSize: '14px' }}>
+                      {item.category}
+                    </td>
+                    <td style={{ color: '#475569', fontSize: '14px' }}>
+                      {item.unit}
+                    </td>
+                    <td style={{ color: '#475569', fontSize: '14px' }}>
+                      {item.qty_per_karton ?? '-'}
+                    </td>
+                    <td>
+                      <span
+                        style={{
+                          fontSize: '14.5px',
+                          fontWeight: isLowStock ? 700 : 500,
+                          color: isLowStock ? '#DC2626' : '#0F172A'
+                        }}
+                      >
+                        {item.stock_current}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                        <button
+                          onClick={() => openEditModal(item)}
                           style={{
-                            fontWeight: 600,
-                            color: isLow ? '#DC2626' : '#0F172A'
+                            padding: '6px',
+                            borderRadius: 'var(--radius-sm)',
+                            color: '#334155',
+                            background: '#F8FAFC',
+                            border: '1px solid #E2E8F0',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all var(--transition-fast)'
                           }}
+                          className="action-btn-edit"
+                          title="Edit Produk"
                         >
-                          {product.stock_current} pcs
-                        </span>
-                      </td>
-                      <td>
-                        <span
+                          <Edit2 size={13} />
+                        </button>
+                        <button
+                          onClick={() => openDeleteModal(item)}
                           style={{
-                            fontSize: '13px',
-                            fontWeight: lastCount.isUrgent ? 600 : 500,
-                            color: lastCount.isUrgent ? '#DC2626' : '#475569'
+                            padding: '6px',
+                            borderRadius: 'var(--radius-sm)',
+                            color: '#DC2626',
+                            background: '#FEF2F2',
+                            border: '1px solid #FECACA',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all var(--transition-fast)'
                           }}
+                          className="action-btn-delete"
+                          title="Hapus Produk"
                         >
-                          {lastCount.text}
-                        </span>
-                      </td>
-                      <td style={{ textAlign: 'center' }}>
-                        <div style={{ display: 'inline-flex', gap: '6px' }}>
-                          <button
-                            onClick={() => openEditModal(product)}
-                            className="btn-icon"
-                            title="Ubah Produk"
-                          >
-                            <Edit2 size={15} />
-                          </button>
-                          <button
-                            onClick={() => openDeleteModal(product)}
-                            className="btn-icon btn-icon-danger"
-                            title="Nonaktifkan Produk"
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
       </div>
 
-      {/* Modal Tambah Produk (Tanpa Supplier & Tanpa Karton) */}
+      {/* MODAL 1: Tambah Produk */}
       <Modal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         title="Tambah Produk Baru"
-        subtitle="Daftarkan barang baru ke dalam sistem katalog toko"
+        maxWidth="520px"
       >
         <form onSubmit={handleAddSubmit}>
           {formError && (
-            <div className="alert alert-danger" style={{ marginBottom: '16px' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 14px',
+                background: '#FEF2F2',
+                border: '1px solid #FECACA',
+                borderRadius: 'var(--radius-sm)',
+                color: '#DC2626',
+                fontSize: '13px',
+                marginBottom: '16px'
+              }}
+            >
               <AlertCircle size={16} />
               <span>{formError}</span>
             </div>
           )}
 
           <div className="form-group">
-            <label className="form-label" htmlFor="add-name">
-              Nama Produk <span style={{ color: '#DC2626' }}>*</span>
-            </label>
+            <label className="form-label">Nama Produk *</label>
             <input
-              id="add-name"
               type="text"
-              className="input"
+              className="form-input"
               placeholder="Contoh: Indomie Goreng"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              maxLength={100}
               required
             />
           </div>
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="add-category">
-              Kategori <span style={{ color: '#DC2626' }}>*</span>
-            </label>
-            <select
-              id="add-category"
-              className="input"
-              value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-            >
-              {categories.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-              <option value="Lainnya">+ Tambah Kategori Baru</option>
-            </select>
-          </div>
-
-          {formData.category === 'Lainnya' && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
             <div className="form-group">
-              <label className="form-label" htmlFor="add-custom-cat">
-                Nama Kategori Baru <span style={{ color: '#DC2626' }}>*</span>
-              </label>
+              <label className="form-label">Kategori *</label>
+              <select
+                className="form-select"
+                value={formData.category}
+                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+              >
+                <option value="Mie">Mie</option>
+                <option value="Sabun">Sabun</option>
+                <option value="Bumbu">Bumbu</option>
+                <option value="Minuman">Minuman</option>
+                <option value="Sembako">Sembako</option>
+                <option value="Lainnya">Lainnya</option>
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Satuan Eceran *</label>
               <input
-                id="add-custom-cat"
                 type="text"
-                className="input"
-                placeholder="Contoh: Biskuit"
-                value={formData.customCategory}
-                onChange={(e) => setFormData({ ...formData, customCategory: e.target.value })}
-                maxLength={50}
+                className="form-input"
+                placeholder="pcs / bungkus / botol"
+                value={formData.unit}
+                onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
                 required
               />
             </div>
-          )}
+          </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
             <div className="form-group">
-              <label className="form-label" htmlFor="add-stock">
-                Stok Awal (pcs)
-              </label>
+              <label className="form-label">Isi per Karton</label>
               <input
-                id="add-stock"
                 type="number"
-                className="input"
+                min={1}
+                className="form-input"
+                placeholder="Opsional (misal: 40)"
+                value={formData.qty_per_karton ?? ''}
+                onChange={(e) => setFormData({
+                  ...formData,
+                  qty_per_karton: e.target.value ? parseInt(e.target.value, 10) : null
+                })}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Stok Awal ({formData.unit})</label>
+              <input
+                type="number"
                 min={0}
-                max={10000000}
+                className="form-input"
                 value={formData.stock_current}
                 onChange={(e) => setFormData({ ...formData, stock_current: parseInt(e.target.value, 10) || 0 })}
               />
             </div>
-
-            <div className="form-group">
-              <label className="form-label" htmlFor="add-min">
-                Batas Minimum (pcs)
-              </label>
-              <input
-                id="add-min"
-                type="number"
-                className="input"
-                min={0}
-                max={10000000}
-                value={formData.stock_minimum}
-                onChange={(e) => setFormData({ ...formData, stock_minimum: parseInt(e.target.value, 10) || 0 })}
-              />
-            </div>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '24px' }}>
+          <div className="form-group">
+            <label className="form-label">Batas Minimum Stok ({formData.unit}) *</label>
+            <input
+              type="number"
+              min={0}
+              className="form-input"
+              value={formData.stock_minimum}
+              onChange={(e) => setFormData({ ...formData, stock_minimum: parseInt(e.target.value, 10) || 0 })}
+              required
+            />
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: '10px',
+              marginTop: '20px',
+              paddingTop: '16px',
+              borderTop: '1px solid #E2E8F0'
+            }}
+          >
             <button
               type="button"
-              onClick={() => setIsAddModalOpen(false)}
               className="btn btn-secondary"
-              disabled={isSaving}
+              onClick={() => setIsAddModalOpen(false)}
             >
               Batal
             </button>
-            <button type="submit" className="btn btn-primary" disabled={isSaving}>
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={isSaving}
+            >
               {isSaving ? 'Menyimpan...' : 'Simpan Produk'}
             </button>
           </div>
         </form>
       </Modal>
 
-      {/* Modal Ubah Produk (Stok Tidak Bisa Diubah) */}
+      {/* MODAL 2: Edit Produk */}
       <Modal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
-        title="Ubah Produk"
-        subtitle="Perbarui nama produk, kategori, atau batas stok minimum"
+        title="Ubah Data Produk"
+        maxWidth="520px"
       >
         <form onSubmit={handleEditSubmit}>
           {formError && (
-            <div className="alert alert-danger" style={{ marginBottom: '16px' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 14px',
+                background: '#FEF2F2',
+                border: '1px solid #FECACA',
+                borderRadius: 'var(--radius-sm)',
+                color: '#DC2626',
+                fontSize: '13px',
+                marginBottom: '16px'
+              }}
+            >
               <AlertCircle size={16} />
               <span>{formError}</span>
             </div>
           )}
 
           <div className="form-group">
-            <label className="form-label" htmlFor="edit-name">
-              Nama Produk <span style={{ color: '#DC2626' }}>*</span>
-            </label>
+            <label className="form-label">Nama Produk *</label>
             <input
-              id="edit-name"
               type="text"
-              className="input"
+              className="form-input"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              maxLength={100}
               required
             />
           </div>
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="edit-category">
-              Kategori <span style={{ color: '#DC2626' }}>*</span>
-            </label>
-            <select
-              id="edit-category"
-              className="input"
-              value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-            >
-              {categories.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-              <option value="Lainnya">+ Tambah Kategori Baru</option>
-            </select>
-          </div>
-
-          {formData.category === 'Lainnya' && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
             <div className="form-group">
-              <label className="form-label" htmlFor="edit-custom-cat">
-                Nama Kategori Baru <span style={{ color: '#DC2626' }}>*</span>
-              </label>
+              <label className="form-label">Kategori *</label>
+              <select
+                className="form-select"
+                value={formData.category}
+                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+              >
+                <option value="Mie">Mie</option>
+                <option value="Sabun">Sabun</option>
+                <option value="Bumbu">Bumbu</option>
+                <option value="Minuman">Minuman</option>
+                <option value="Sembako">Sembako</option>
+                <option value="Lainnya">Lainnya</option>
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Satuan Eceran *</label>
               <input
-                id="edit-custom-cat"
                 type="text"
-                className="input"
-                placeholder="Contoh: Kebutuhan Rumah"
-                value={formData.customCategory}
-                onChange={(e) => setFormData({ ...formData, customCategory: e.target.value })}
-                maxLength={50}
+                className="form-input"
+                placeholder="pcs / bungkus / botol"
+                value={formData.unit}
+                onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
                 required
               />
             </div>
-          )}
+          </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
             <div className="form-group">
-              <label className="form-label">
-                Stok Saat Ini (Terkunci)
-              </label>
+              <label className="form-label">Isi per Karton</label>
               <input
-                type="text"
-                className="input"
-                disabled
-                value={`${formData.stock_current} pcs (perubahan lewat transaksi/opname)`}
-                style={{ background: '#F1F5F9', color: '#64748B', cursor: 'not-allowed' }}
+                type="number"
+                min={1}
+                className="form-input"
+                value={formData.qty_per_karton ?? ''}
+                onChange={(e) => setFormData({
+                  ...formData,
+                  qty_per_karton: e.target.value ? parseInt(e.target.value, 10) : null
+                })}
               />
             </div>
 
             <div className="form-group">
-              <label className="form-label" htmlFor="edit-min">
-                Batas Minimum (pcs)
-              </label>
+              <label className="form-label">Stok Saat Ini ({formData.unit})</label>
               <input
-                id="edit-min"
                 type="number"
-                className="input"
                 min={0}
-                max={10000000}
-                value={formData.stock_minimum}
-                onChange={(e) => setFormData({ ...formData, stock_minimum: parseInt(e.target.value, 10) || 0 })}
+                className="form-input"
+                value={formData.stock_current}
+                onChange={(e) => setFormData({ ...formData, stock_current: parseInt(e.target.value, 10) || 0 })}
               />
             </div>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '24px' }}>
+          <div className="form-group">
+            <label className="form-label">Batas Minimum Stok ({formData.unit}) *</label>
+            <input
+              type="number"
+              min={0}
+              className="form-input"
+              value={formData.stock_minimum}
+              onChange={(e) => setFormData({ ...formData, stock_minimum: parseInt(e.target.value, 10) || 0 })}
+              required
+            />
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: '10px',
+              marginTop: '20px',
+              paddingTop: '16px',
+              borderTop: '1px solid #E2E8F0'
+            }}
+          >
             <button
               type="button"
-              onClick={() => setIsEditModalOpen(false)}
               className="btn btn-secondary"
-              disabled={isSaving}
+              onClick={() => setIsEditModalOpen(false)}
             >
               Batal
             </button>
-            <button type="submit" className="btn btn-primary" disabled={isSaving}>
-              {isSaving ? 'Menyimpan...' : 'Perbarui Produk'}
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={isSaving}
+            >
+              {isSaving ? 'Menyimpan...' : 'Simpan Perubahan'}
             </button>
           </div>
         </form>
       </Modal>
 
-      {/* Modal Konfirmasi Nonaktifkan Produk */}
+      {/* MODAL 3: Konfirmasi Hapus Produk */}
       <Modal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
-        title="Nonaktifkan Produk"
-        subtitle="Produk akan disembunyikan dari daftar, riwayat transaksi tetap terjaga"
+        title="Konfirmasi Hapus"
+        maxWidth="440px"
       >
-        <p style={{ fontSize: '14px', color: '#475569', lineHeight: 1.6 }}>
-          Apakah Anda yakin ingin menonaktifkan produk{' '}
-          <strong style={{ color: '#0F172A' }}>{selectedProduct?.name}</strong>?
-        </p>
+        <div style={{ textAlign: 'center', padding: '10px 0 20px' }}>
+          <div
+            style={{
+              width: '46px',
+              height: '46px',
+              borderRadius: 'var(--radius-sm)',
+              background: '#FEF2F2',
+              border: '1px solid #FECACA',
+              color: '#DC2626',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 14px'
+            }}
+          >
+            <Trash2 size={20} />
+          </div>
+          <h4 style={{ fontSize: '16px', fontWeight: 700, color: '#0F172A' }}>
+            Hapus produk ini?
+          </h4>
+          <p style={{ fontSize: '13.5px', color: '#64748B', marginTop: '6px', lineHeight: 1.45 }}>
+            Produk &quot;{selectedProduct?.name}&quot; beserta riwayat terkait akan dihapus dari sistem.
+          </p>
+        </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
           <button
             type="button"
-            onClick={() => setIsDeleteModalOpen(false)}
             className="btn btn-secondary"
-            disabled={isSaving}
+            onClick={() => setIsDeleteModalOpen(false)}
           >
             Batal
           </button>
           <button
             type="button"
-            onClick={handleDeleteSubmit}
             className="btn btn-danger"
+            onClick={handleDeleteConfirm}
             disabled={isSaving}
           >
-            {isSaving ? 'Menonaktifkan...' : 'Ya, Nonaktifkan'}
+            {isSaving ? 'Menghapus...' : 'Ya, Hapus'}
           </button>
         </div>
       </Modal>
+
+      <style jsx global>{`
+        .action-btn-edit:hover {
+          background: #0F172A !important;
+          color: #FFFFFF !important;
+          border-color: #0F172A !important;
+        }
+        .action-btn-delete:hover {
+          background: #DC2626 !important;
+          color: #FFFFFF !important;
+          border-color: #DC2626 !important;
+        }
+      `}</style>
     </DashboardLayout>
   );
 }
