@@ -637,7 +637,7 @@ export default function ProdukPage() {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Satuan Eceran *</label>
+              <label className="form-label">Satuan Ecer *</label>
               <input
                 type="text"
                 className="form-input"
@@ -650,27 +650,50 @@ export default function ProdukPage() {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
             <div className="form-group">
-              <label className="form-label">Stok Saat Ini (pcs)</label>
+              <label className="form-label">Isi per Karton</label>
               <input
                 type="number"
-                min={0}
+                min={1}
                 className="form-input"
-                value={formData.stock_current}
-                onChange={(e) => setFormData({ ...formData, stock_current: parseInt(e.target.value, 10) || 0 })}
+                placeholder="24"
+                value={formData.qty_per_karton ?? ''}
+                onChange={(e) => setFormData({
+                  ...formData,
+                  qty_per_karton: e.target.value ? parseInt(e.target.value, 10) : null
+                })}
               />
             </div>
 
             <div className="form-group">
-              <label className="form-label">Batas Minimum Stok (pcs) *</label>
+              <label className="form-label">Stok Saat Ini ({formData.unit})</label>
               <input
                 type="number"
-                min={0}
                 className="form-input"
-                value={formData.stock_minimum}
-                onChange={(e) => setFormData({ ...formData, stock_minimum: parseInt(e.target.value, 10) || 0 })}
-                required
+                value={formData.stock_current}
+                disabled
+                style={{
+                  background: '#F8FAFC',
+                  color: '#64748B',
+                  borderColor: '#E2E8F0',
+                  cursor: 'not-allowed'
+                }}
               />
+              <p style={{ fontSize: '11.5px', color: '#64748B', marginTop: '5px', lineHeight: 1.3 }}>
+                Stok diubah lewat Riwayat &rarr; Catat Manual.
+              </p>
             </div>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Batas Minimum Stok ({formData.unit}) *</label>
+            <input
+              type="number"
+              min={0}
+              className="form-input"
+              value={formData.stock_minimum}
+              onChange={(e) => setFormData({ ...formData, stock_minimum: parseInt(e.target.value, 10) || 0 })}
+              required
+            />
           </div>
 
           <div
