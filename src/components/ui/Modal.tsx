@@ -8,6 +8,7 @@ interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
+  subtitle?: string;
   children: React.ReactNode;
   maxWidth?: string;
 }
@@ -16,6 +17,7 @@ export const Modal: React.FC<ModalProps> = ({
   isOpen,
   onClose,
   title,
+  subtitle,
   children,
   maxWidth = '520px'
 }) => {
@@ -90,9 +92,16 @@ export const Modal: React.FC<ModalProps> = ({
             background: '#F8FAFC'
           }}
         >
-          <h3 style={{ fontSize: '17px', fontWeight: 700, color: '#0F172A', margin: 0 }}>
-            {title}
-          </h3>
+          <div>
+            <h3 style={{ fontSize: '17px', fontWeight: 700, color: '#0F172A', margin: 0 }}>
+              {title}
+            </h3>
+            {subtitle && (
+              <p style={{ fontSize: '12.5px', color: '#64748B', marginTop: '3px', margin: '3px 0 0 0' }}>
+                {subtitle}
+              </p>
+            )}
+          </div>
           <button
             type="button"
             onClick={onClose}
@@ -109,14 +118,14 @@ export const Modal: React.FC<ModalProps> = ({
               transition: 'all 0.15s ease'
             }}
             className="modal-close-btn"
-            title="Tutup"
+            title="Tutup Modal"
           >
             <X size={16} />
           </button>
         </div>
 
-        {/* Content */}
-        <div style={{ padding: '24px', overflowY: 'auto', background: '#FFFFFF' }}>
+        {/* Body */}
+        <div style={{ padding: '22px 24px', overflowY: 'auto' }}>
           {children}
         </div>
       </div>
@@ -127,17 +136,16 @@ export const Modal: React.FC<ModalProps> = ({
           to { opacity: 1; }
         }
         @keyframes modalPopIn {
-          from { opacity: 0; transform: scale(0.96) translateY(-8px); }
+          from { opacity: 0; transform: scale(0.96) translateY(8px); }
           to { opacity: 1; transform: scale(1) translateY(0); }
         }
         .modal-close-btn:hover {
-          background: #FEF2F2 !important;
-          color: #DC2626 !important;
-          border-color: #FECACA !important;
+          color: #0F172A !important;
+          border-color: #94A3B8 !important;
+          background: #F1F5F9 !important;
         }
       `}</style>
     </div>,
     document.body
   );
 };
-

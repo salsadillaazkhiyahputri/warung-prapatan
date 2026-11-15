@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SupplierService } from '@/lib/db';
+import { getCurrentUser } from '@/lib/auth';
+import { readJson, cleanText, validateSupplierJenis, BusinessError } from '@/lib/validate';
 
 export async function GET() {
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Tidak terautentikasi' }, { status: 401 });
+  }
+
   try {
     const suppliers = await SupplierService.getAll();
     return NextResponse.json(suppliers);
@@ -12,21 +19,30 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Tidak terautentikasi' }, { status: 401 });
+  }
+
   try {
-    const body = await req.json();
-    const { name } = body;
+    const body = await readJson<Record<string, unknown>>(req);
 
-    if (!name || !name.trim()) {
-      return NextResponse.json({ error: 'Nama supplier wajib diisi' }, { status: 400 });
-    }
+    const name = cleanText(body.name, 'Nama supplier', 100, 1);
+    const jenis = validateSupplierJenis(body.jenis);
+    const phone = body.phone ? cleanText(body.phone, 'Nomor telepon', 50, 0) : null;
 
-    const newSupplier = await SupplierService.create(name.trim());
+    const newSupplier = await SupplierService.create({
+      name,
+      jenis,
+      phone
+    });
+
     return NextResponse.json(newSupplier, { status: 201 });
-  } catch (error: any) {
-    console.error('Error creating supplier:', error);
-    return NextResponse.json(
-      { error: error.message || 'Gagal menambahkan supplier' },
-      { status: error.message?.includes('sudah terdaftar') ? 400 : 500 }
-    );
+  } catch (err: any) {
+    if (err instanceof BusinessError) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
+    console.error('Error creating supplier:', err);
+    return NextResponse.json({ error: 'Gagal menambahkan supplier' }, { status: 500 });
   }
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Menu, Calendar, Sparkles } from 'lucide-react';
+import { Menu, Calendar } from 'lucide-react';
 
 interface HeaderProps {
   onToggleMobileMenu: () => void;
@@ -17,6 +17,7 @@ export const Header: React.FC<HeaderProps> = ({
   const [todayFormatted, setTodayFormatted] = React.useState('');
 
   React.useEffect(() => {
+    // Waktu hanya dihitung di client dalam useEffect agar tidak terjadi perbedaan render dengan server
     setTodayFormatted(
       new Intl.DateTimeFormat('id-ID', {
         weekday: 'long',
@@ -88,7 +89,7 @@ export const Header: React.FC<HeaderProps> = ({
           className="date-pill"
         >
           <Calendar size={14} style={{ color: '#64748B' }} />
-          <span>{todayFormatted || 'Senin, 26 Okt 2026'}</span>
+          <span>{todayFormatted || '—'}</span>
         </div>
       </div>
     </header>

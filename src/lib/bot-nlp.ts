@@ -458,7 +458,7 @@ async function executeRekapHarian(): Promise<BotParseResult> {
   replyText += `Masuk: ${recap.masukCount} transaksi\n`;
   replyText += `Keluar: ${recap.keluarCount} transaksi\n`;
   replyText += `Rincian:\n`;
-  replyText += recap.details.map(d => `• ${d}`).join('\n');
+  replyText += recap.details.map((d: string) => `• ${d}`).join('\n');
 
   return {
     success: true,

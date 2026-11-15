@@ -1,81 +1,164 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { TransactionService, ProductService } from '@/lib/db';
+import crypto from 'crypto';
+import { TransactionService, ProductService, SupplierService } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
-import { TransactionType } from '@/types';
+import {
+  readJson,
+  cleanText,
+  parseInteger,
+  optionalId,
+  dateRange,
+  mapRpcError,
+  BusinessError
+} from '@/lib/validate';
 
 export async function GET(req: NextRequest) {
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Tidak terautentikasi' }, { status: 401 });
+  }
+
   try {
     const { searchParams } = new URL(req.url);
-    const startDate = searchParams.get('startDate') || undefined;
-    const endDate = searchParams.get('endDate') || undefined;
+    const startDateParam = searchParams.get('startDate') || undefined;
+    const endDateParam = searchParams.get('endDate') || undefined;
     const prodIdParam = searchParams.get('productId');
-    const typeParam = searchParams.get('type') as TransactionType | 'all' | null;
+    const typeParam = searchParams.get('type') || 'all';
 
-    const productId = prodIdParam && prodIdParam !== 'all' ? parseInt(prodIdParam, 10) : undefined;
-    const type = typeParam && typeParam !== 'all' ? typeParam : 'all';
+    // Validasi ketat rentang tanggal kalender
+    const { startDate, endDate } = dateRange(startDateParam, endDateParam);
+    const productId = optionalId(prodIdParam, 'ID produk');
 
     const transactions = await TransactionService.getHistory({
       startDate,
       endDate,
-      productId: isNaN(productId as number) ? undefined : productId,
-      type
+      productId: productId ?? undefined,
+      type: typeParam !== 'all' ? typeParam : undefined
     });
 
     return NextResponse.json(transactions);
-  } catch (error) {
-    console.error('Error fetching transactions:', error);
+  } catch (err: any) {
+    if (err instanceof BusinessError) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
+    console.error('Error fetching transactions:', err);
     return NextResponse.json({ error: 'Gagal mengambil riwayat transaksi' }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Tidak terautentikasi' }, { status: 401 });
+  }
+
   try {
-    const body = await req.json();
-    const { product_id, type, qty, supplier_id, note } = body;
+    const body = await readJson<Record<string, any>>(req);
 
-    if (!product_id || !type || !qty) {
-      return NextResponse.json({ error: 'product_id, type, dan qty wajib diisi' }, { status: 400 });
+    const productId = parseInteger(body.product_id, 'ID produk', 1);
+    const rawType = cleanText(body.type, 'Tipe transaksi', 10, 1).toLowerCase();
+    if (rawType !== 'in' && rawType !== 'out') {
+      throw new BusinessError('Tipe transaksi harus "in" atau "out"', 400, 'INVALID_TYPE');
+    }
+    const type = rawType as 'in' | 'out';
+
+    // Validasi ketat jumlah 1 sampai 100.000 (menolak pecahan, negatif, 0, teks 5abc)
+    const qty = parseInteger(body.qty, 'Jumlah barang', 1, 100000);
+
+    // Kunci Idempotensi wajib berbentuk web:<uuid>
+    let idemKey = body.idem_key ? String(body.idem_key).trim() : '';
+    if (!idemKey || !/^web:[0-9a-fA-F-]{36}$/.test(idemKey)) {
+      idemKey = `web:${crypto.randomUUID()}`;
     }
 
-    if (type !== 'in' && type !== 'out') {
-      return NextResponse.json({ error: 'Tipe transaksi harus "in" atau "out"' }, { status: 400 });
+    let supplierId: number | null = null;
+    let note: string | null = null;
+
+    if (type === 'in') {
+      supplierId = parseInteger(body.supplier_id, 'Supplier', 1);
+
+      // Cek apakah produk dan supplier valid
+      const [product, supplier] = await Promise.all([
+        ProductService.getById(productId),
+        SupplierService.getById(supplierId)
+      ]);
+
+      if (!product) {
+        throw new BusinessError('Produk tidak ditemukan', 404, 'PRODUCT_NOT_FOUND');
+      }
+      if (!supplier) {
+        throw new BusinessError('Supplier tidak ditemukan', 404, 'SUPPLIER_UNKNOWN');
+      }
+
+      // Cek apakah pasangan produk + supplier merupakan pasangan baru
+      const isNewPair = await TransactionService.checkNewPair(productId, supplierId);
+      if (isNewPair && body.confirm_new_pair !== true) {
+        return NextResponse.json(
+          {
+            need_confirmation: true,
+            code: 'CONFIRM_NEW_PAIR',
+            message: `"${product.name}" belum pernah masuk dari "${supplier.name}". Lanjutkan mencatat?`,
+            product_name: product.name,
+            supplier_name: supplier.name,
+            idem_key: idemKey
+          },
+          { status: 409 }
+        );
+      }
+
+      if (body.note) {
+        note = cleanText(body.note, 'Catatan', 200, 0);
+      }
+    } else {
+      // Transaksi 'out' tidak boleh punya supplier
+      supplierId = null;
+
+      // Alasan keluar manual wajib diisi minimal 3 karakter (barang rusak/hilang)
+      note = cleanText(body.note, 'Alasan barang keluar', 200, 3);
     }
 
-    const numQty = parseInt(qty, 10);
-    if (isNaN(numQty) || numQty <= 0) {
-      return NextResponse.json({ error: 'Jumlah (qty) harus angka positif' }, { status: 400 });
-    }
-
-    // Aturan bisnis: supplier_id wajib untuk transaksi bertipe masuk ('in')
-    if (type === 'in' && !supplier_id) {
-      return NextResponse.json({ error: 'Supplier wajib dipilih untuk transaksi stok masuk' }, { status: 400 });
-    }
-
-    const product = await ProductService.getById(parseInt(product_id, 10));
-    if (!product) {
-      return NextResponse.json({ error: 'Produk tidak ditemukan' }, { status: 404 });
-    }
-
-    // Aturan bisnis: untuk transaksi keluar, stok harus mencukupi
-    if (type === 'out' && product.stock_current < numQty) {
-      return NextResponse.json({
-        error: `Stok tidak mencukupi. Stok saat ini: ${product.stock_current} ${product.unit}`
-      }, { status: 400 });
-    }
-
-    const user = await getCurrentUser();
-    const newTrx = await TransactionService.create({
-      product_id: product.id,
-      user_id: user?.id,
-      supplier_id: type === 'in' ? parseInt(supplier_id, 10) : null,
+    // Catat pergerakan stok via RPC (Stok tidak pernah diubah via UPDATE langsung)
+    const rpcResult = await TransactionService.recordMovement({
+      userId: user.id,
       type,
-      qty: numQty,
-      note: note || null
+      productId,
+      qty,
+      supplierId,
+      note,
+      idemKey
     });
 
-    return NextResponse.json(newTrx, { status: 201 });
-  } catch (error) {
-    console.error('Error creating transaction:', error);
-    return NextResponse.json({ error: 'Gagal membuat transaksi' }, { status: 500 });
+    if (!rpcResult.ok) {
+      const mapped = mapRpcError(rpcResult.code || 'UNKNOWN_ERROR', rpcResult as any);
+      return NextResponse.json({ error: mapped.message, code: rpcResult.code }, { status: mapped.status });
+    }
+
+    // Tangani kemungkinan duplikasi idempotensi
+    if (rpcResult.duplicate) {
+      return NextResponse.json(
+        {
+          success: true,
+          duplicate: true,
+          message: 'Transaksi telah berhasil dicatat sebelumnya (duplikat diabaikan)',
+          ...rpcResult
+        },
+        { status: 200 }
+      );
+    }
+
+    return NextResponse.json(
+      {
+        success: true,
+        message: type === 'in' ? 'Stok masuk berhasil dicatat' : 'Stok keluar berhasil dicatat',
+        ...rpcResult
+      },
+      { status: 201 }
+    );
+  } catch (err: any) {
+    if (err instanceof BusinessError) {
+      return NextResponse.json({ error: err.message, code: err.code }, { status: err.status });
+    }
+    console.error('Error creating transaction:', err);
+    return NextResponse.json({ error: 'Gagal mencatat transaksi stok' }, { status: 500 });
   }
 }

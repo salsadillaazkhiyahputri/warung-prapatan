@@ -1,26 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { TransactionService } from '@/lib/db';
+import { getCurrentUser } from '@/lib/auth';
 import ExcelJS from 'exceljs';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatDateTime } from '@/lib/export-utils';
+import {
+  dateRange,
+  optionalId,
+  neutralizeExcelFormula,
+  getTransactionLabel,
+  BusinessError
+} from '@/lib/validate';
 
 export async function GET(req: NextRequest) {
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Tidak terautentikasi' }, { status: 401 });
+  }
+
   try {
     const { searchParams } = new URL(req.url);
     const format = searchParams.get('format') || 'excel';
-    const startDate = searchParams.get('startDate') || undefined;
-    const endDate = searchParams.get('endDate') || undefined;
+    const startDateParam = searchParams.get('startDate') || undefined;
+    const endDateParam = searchParams.get('endDate') || undefined;
     const prodIdParam = searchParams.get('productId');
     const typeParam = searchParams.get('type');
 
-    const productId = prodIdParam && prodIdParam !== 'all' ? parseInt(prodIdParam, 10) : undefined;
-    const type = typeParam === 'in' || typeParam === 'out' ? typeParam : 'all';
+    // Validasi ketat rentang tanggal kalender
+    const { startDate, endDate } = dateRange(startDateParam, endDateParam);
+    const productId = optionalId(prodIdParam, 'ID produk');
+    const type = typeParam === 'in' || typeParam === 'out' ? typeParam : undefined;
 
     const transactions = await TransactionService.getHistory({
       startDate,
       endDate,
-      productId: isNaN(productId as number) ? undefined : productId,
+      productId: productId ?? undefined,
       type
     });
 
@@ -39,7 +54,7 @@ export async function GET(req: NextRequest) {
     const countMasuk = transactions.filter(t => t.type === 'in').length;
     const countKeluar = transactions.filter(t => t.type === 'out').length;
 
-    // 1. Ekspor Format EXCEL (.xlsx) dengan Template Modern & Berwarna
+    // 1. Ekspor Format EXCEL (.xlsx)
     if (format === 'excel' || format === 'xlsx') {
       const workbook = new ExcelJS.Workbook();
       workbook.creator = 'Warung Prapatan';
@@ -50,7 +65,6 @@ export async function GET(req: NextRequest) {
         pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
       });
 
-      // Definisi Lebar Kolom yang Lega
       worksheet.columns = [
         { key: 'no', width: 7 },
         { key: 'date', width: 22 },
@@ -81,7 +95,7 @@ export async function GET(req: NextRequest) {
       r2.alignment = { vertical: 'middle', horizontal: 'center' };
       worksheet.getRow(2).height = 24;
 
-      // Row 3: Meta Info (Tanggal Cetak, Periode, Ringkasan)
+      // Row 3: Meta Info
       worksheet.mergeCells('A3:I3');
       const r3 = worksheet.getCell('A3');
       r3.value = `Tanggal Cetak: ${printDate}   |   Periode: ${periodText}   |   Total: ${transactions.length} Transaksi (Masuk: ${countMasuk}, Keluar: ${countKeluar})`;
@@ -114,12 +128,6 @@ export async function GET(req: NextRequest) {
         cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } };
         cell.alignment = { vertical: 'middle', horizontal: 'center' };
-        cell.border = {
-          top: { style: 'thin', color: { argb: 'FF334155' } },
-          bottom: { style: 'medium', color: { argb: 'FF0F172A' } },
-          left: { style: 'thin', color: { argb: 'FF334155' } },
-          right: { style: 'thin', color: { argb: 'FF334155' } }
-        };
       });
 
       // Data Rows
@@ -137,6 +145,7 @@ export async function GET(req: NextRequest) {
 
         const isEven = i % 2 === 0;
         const baseBg = isEven ? 'FFFFFFFF' : 'FFF8FAFC';
+        const label = getTransactionLabel(t.type, t.source);
         const isIn = t.type === 'in';
 
         // 1. No
@@ -149,15 +158,15 @@ export async function GET(req: NextRequest) {
 
         // 2. Tanggal & Waktu
         const c2 = row.getCell(2);
-        c2.value = formatDateTime(t.created_at);
+        c2.value = t.tanggal_wib || formatDateTime(t.created_at);
         c2.alignment = { vertical: 'middle', horizontal: 'center' };
         c2.font = { name: 'Calibri', size: 10, color: { argb: 'FF334155' } };
         c2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: baseBg } };
         c2.border = thinBorder;
 
-        // 3. Nama Produk
+        // 3. Nama Produk (Netralkan Formula Excel)
         const c3 = row.getCell(3);
-        c3.value = t.product?.name || `Produk #${t.product_id}`;
+        c3.value = neutralizeExcelFormula(t.product_name || `Produk #${t.product_id}`);
         c3.alignment = { vertical: 'middle', horizontal: 'left' };
         c3.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF0F172A' } };
         c3.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: baseBg } };
@@ -165,7 +174,7 @@ export async function GET(req: NextRequest) {
 
         // 4. Kategori
         const c4 = row.getCell(4);
-        c4.value = t.product?.category || '-';
+        c4.value = neutralizeExcelFormula(t.category || '-');
         c4.alignment = { vertical: 'middle', horizontal: 'center' };
         c4.font = { name: 'Calibri', size: 9.5, color: { argb: 'FF475569' } };
         c4.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: baseBg } };
@@ -173,7 +182,7 @@ export async function GET(req: NextRequest) {
 
         // 5. Jenis Transaksi
         const c5 = row.getCell(5);
-        c5.value = isIn ? 'Masuk (+)' : 'Keluar (-)';
+        c5.value = label;
         c5.alignment = { vertical: 'middle', horizontal: 'center' };
         c5.font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: isIn ? 'FF065F46' : 'FF991B1B' } };
         c5.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isIn ? 'FFECFDF5' : 'FFFEF2F2' } };
@@ -189,240 +198,116 @@ export async function GET(req: NextRequest) {
 
         // 7. Satuan
         const c7 = row.getCell(7);
-        c7.value = t.product?.unit || 'pcs';
+        c7.value = 'pcs';
         c7.alignment = { vertical: 'middle', horizontal: 'center' };
         c7.font = { name: 'Calibri', size: 9.5, color: { argb: 'FF64748B' } };
         c7.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: baseBg } };
         c7.border = thinBorder;
 
-        // 8. Supplier
+        // 8. Supplier (Netralkan Formula Excel)
         const c8 = row.getCell(8);
-        c8.value = isIn ? (t.supplier?.name || '-') : '—';
+        c8.value = isIn ? neutralizeExcelFormula(t.supplier_name || '-') : '—';
         c8.alignment = { vertical: 'middle', horizontal: 'left' };
-        c8.font = { name: 'Calibri', size: 10, color: { argb: 'FF1E293B' } };
+        c8.font = { name: 'Calibri', size: 9.5, color: { argb: 'FF334155' } };
         c8.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: baseBg } };
         c8.border = thinBorder;
 
-        // 9. Catatan
+        // 9. Catatan (Netralkan Formula Excel)
         const c9 = row.getCell(9);
-        c9.value = t.note || '-';
+        c9.value = neutralizeExcelFormula(t.note || '-');
         c9.alignment = { vertical: 'middle', horizontal: 'left' };
-        c9.font = { name: 'Calibri', size: 9.5, color: { argb: 'FF64748B' } };
+        c9.font = { name: 'Calibri', size: 9.5, italic: true, color: { argb: 'FF64748B' } };
         c9.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: baseBg } };
         c9.border = thinBorder;
       });
 
-      // Row Footer Total
-      const endRowIndex = 6 + transactions.length;
-      const footerRow = worksheet.getRow(endRowIndex);
-      footerRow.height = 24;
-
-      worksheet.mergeCells(`A${endRowIndex}:E${endRowIndex}`);
-      const fTitle = worksheet.getCell(`A${endRowIndex}`);
-      fTitle.value = 'TOTAL KESELURUHAN CATATAN:';
-      fTitle.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF0F172A' } };
-      fTitle.alignment = { vertical: 'middle', horizontal: 'right' };
-      fTitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
-      fTitle.border = {
-        top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
-        bottom: { style: 'double', color: { argb: 'FF0F172A' } }
-      };
-
-      worksheet.mergeCells(`F${endRowIndex}:I${endRowIndex}`);
-      const fVal = worksheet.getCell(`F${endRowIndex}`);
-      fVal.value = `${transactions.length} Aktivitas Transaksi (${countMasuk} Masuk, ${countKeluar} Keluar)`;
-      fVal.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF0F172A' } };
-      fVal.alignment = { vertical: 'middle', horizontal: 'left' };
-      fVal.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
-      fVal.border = {
-        top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
-        bottom: { style: 'double', color: { argb: 'FF0F172A' } }
-      };
-
       const buffer = await workbook.xlsx.writeBuffer();
-      const filename = `Laporan-Transaksi-Warung-Prapatan-${stamp}.xlsx`;
-
-      return new NextResponse(Buffer.from(buffer), {
-        status: 200,
+      return new NextResponse(buffer, {
         headers: {
           'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          'Content-Disposition': `attachment; filename="${filename}"`
+          'Content-Disposition': `attachment; filename="Laporan-Transaksi-${stamp}.xlsx"`
         }
       });
     }
 
-    // 2. Ekspor Format PDF (.pdf) dengan Layout Landscape Elegan & Profesional
-    if (format === 'pdf') {
-      const doc = new jsPDF({
-        orientation: 'landscape',
-        unit: 'mm',
-        format: 'a4'
-      });
+    // 2. Ekspor Format PDF
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
-      // Header Navy Deep (lebar A4 Landscape = 297mm)
-      doc.setFillColor(15, 23, 42); // slate-900 / navy
-      doc.rect(0, 0, 297, 28, 'F');
+    // Header Background Navy
+    doc.setFillColor(15, 23, 42); // #0F172A
+    doc.rect(0, 0, 297, 24, 'F');
 
-      // Brand Title
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(16);
-      doc.setFont('helvetica', 'bold');
-      doc.text('WARUNG PRAPATAN', 14, 12);
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('WARUNG PRAPATAN', 14, 11);
 
-      doc.setFontSize(8.5);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(56, 189, 248); // sky-400
-      doc.text('SISTEM MANAJEMEN STOK & INVENTARIS TOKO', 14, 19);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(56, 189, 248); // Sky blue
+    doc.text('LAPORAN RIWAYAT TRANSAKSI STOK BARANG', 14, 18);
 
-      // Document Title & Print Meta (Right Aligned)
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'bold');
-      doc.text('LAPORAN RIWAYAT TRANSAKSI', 283, 12, { align: 'right' });
+    doc.setTextColor(203, 213, 225);
+    doc.setFontSize(8);
+    doc.text(`Dicetak: ${printDate} | Periode: ${periodText}`, 297 - 14, 15, { align: 'right' });
 
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(203, 213, 225);
-      doc.text(`Dicetak: ${printDate}  |  Periode: ${periodText}`, 283, 19, { align: 'right' });
+    const tableRows = transactions.map((t, idx) => {
+      const isIn = t.type === 'in';
+      const label = getTransactionLabel(t.type, t.source);
+      return [
+        idx + 1,
+        t.tanggal_wib || formatDateTime(t.created_at),
+        neutralizeExcelFormula(t.product_name || `Produk #${t.product_id}`),
+        neutralizeExcelFormula(t.category || '-'),
+        label,
+        isIn ? `+${t.qty} pcs` : `-${t.qty} pcs`,
+        isIn ? neutralizeExcelFormula(t.supplier_name || '-') : '—',
+        neutralizeExcelFormula(t.note || '-')
+      ];
+    });
 
-      // KPI Info Cards (Y: 32 to Y: 43)
-      // Card 1: Total Transaksi
-      doc.setFillColor(241, 245, 249);
-      doc.roundedRect(14, 32, 60, 11, 2, 2, 'F');
-      doc.setFontSize(7.5);
-      doc.setTextColor(100, 116, 139);
-      doc.setFont('helvetica', 'normal');
-      doc.text('TOTAL TRANSAKSI', 18, 36.5);
-      doc.setFontSize(9.5);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(15, 23, 42);
-      doc.text(`${transactions.length} Catatan`, 18, 41);
+    autoTable(doc, {
+      startY: 30,
+      head: [['No', 'Tanggal & Waktu', 'Produk', 'Kategori', 'Jenis', 'Jumlah', 'Supplier', 'Catatan']],
+      body: tableRows,
+      theme: 'grid',
+      styles: {
+        fontSize: 8,
+        cellPadding: 2.5,
+        textColor: [51, 65, 85],
+        lineColor: [226, 232, 240],
+        lineWidth: 0.1
+      },
+      headStyles: {
+        fillColor: [15, 23, 42],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        halign: 'center'
+      },
+      columnStyles: {
+        0: { halign: 'center', cellWidth: 10 },
+        1: { halign: 'center', cellWidth: 32 },
+        2: { fontStyle: 'bold', cellWidth: 42 },
+        3: { halign: 'center', cellWidth: 26 },
+        4: { halign: 'center', cellWidth: 28 },
+        5: { halign: 'right', fontStyle: 'bold', cellWidth: 22 },
+        6: { cellWidth: 36 },
+        7: { cellWidth: 'auto' }
+      }
+    });
 
-      // Card 2: Transaksi Masuk
-      doc.setFillColor(236, 253, 245);
-      doc.roundedRect(78, 32, 60, 11, 2, 2, 'F');
-      doc.setFontSize(7.5);
-      doc.setTextColor(6, 95, 70);
-      doc.setFont('helvetica', 'normal');
-      doc.text('TRANSAKSI MASUK (+)', 82, 36.5);
-      doc.setFontSize(9.5);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(5, 150, 105);
-      doc.text(`${countMasuk} Aktivitas`, 82, 41);
-
-      // Card 3: Transaksi Keluar
-      doc.setFillColor(254, 242, 242);
-      doc.roundedRect(142, 32, 60, 11, 2, 2, 'F');
-      doc.setFontSize(7.5);
-      doc.setTextColor(153, 27, 27);
-      doc.setFont('helvetica', 'normal');
-      doc.text('TRANSAKSI KELUAR (-)', 146, 36.5);
-      doc.setFontSize(9.5);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(220, 38, 38);
-      doc.text(`${countKeluar} Aktivitas`, 146, 41);
-
-      const tableData = transactions.map((t, index) => [
-        index + 1,
-        formatDateTime(t.created_at),
-        t.product?.name || `Produk #${t.product_id}`,
-        t.product?.category || '-',
-        t.type === 'in' ? 'Masuk (+)' : 'Keluar (-)',
-        t.type === 'in' ? `+${t.qty}` : `-${t.qty}`,
-        t.product?.unit || 'pcs',
-        t.type === 'in' ? (t.supplier?.name || '-') : '—',
-        t.note || '-'
-      ]);
-
-      autoTable(doc, {
-        startY: 47,
-        head: [['No', 'Tanggal & Waktu', 'Nama Produk', 'Kategori', 'Jenis', 'Jumlah', 'Satuan', 'Supplier', 'Catatan']],
-        body: tableData,
-        theme: 'grid',
-        headStyles: {
-          fillColor: [15, 23, 42],
-          textColor: [255, 255, 255],
-          fontStyle: 'bold',
-          fontSize: 8.5,
-          halign: 'center',
-          valign: 'middle',
-          cellPadding: 3
-        },
-        styles: {
-          fontSize: 8,
-          cellPadding: 2.5,
-          valign: 'middle',
-          textColor: [30, 41, 59],
-          lineColor: [226, 232, 240],
-          lineWidth: 0.2
-        },
-        alternateRowStyles: {
-          fillColor: [248, 250, 252]
-        },
-        columnStyles: {
-          0: { halign: 'center', cellWidth: 10 },
-          1: { halign: 'center', cellWidth: 32 },
-          2: { halign: 'left', cellWidth: 44, fontStyle: 'bold' },
-          3: { halign: 'center', cellWidth: 22 },
-          4: { halign: 'center', cellWidth: 24 },
-          5: { halign: 'right', cellWidth: 20, fontStyle: 'bold' },
-          6: { halign: 'center', cellWidth: 16 },
-          7: { halign: 'left', cellWidth: 34 },
-          8: { halign: 'left', cellWidth: 'auto' }
-        },
-        didParseCell: function(data) {
-          if (data.section === 'body') {
-            if (data.column.index === 4) {
-              if (String(data.cell.raw).includes('Masuk')) {
-                data.cell.styles.fillColor = [236, 253, 245];
-                data.cell.styles.textColor = [6, 95, 70];
-                data.cell.styles.fontStyle = 'bold';
-              } else {
-                data.cell.styles.fillColor = [254, 242, 242];
-                data.cell.styles.textColor = [153, 27, 27];
-                data.cell.styles.fontStyle = 'bold';
-              }
-            }
-            if (data.column.index === 5) {
-              if (String(data.cell.raw).startsWith('+')) {
-                data.cell.styles.textColor = [5, 150, 105];
-              } else {
-                data.cell.styles.textColor = [220, 38, 38];
-              }
-            }
-          }
-        },
-        didDrawPage: function(data) {
-          const pageCount = (doc.internal as any).getNumberOfPages();
-          const pageCurrent = data.pageNumber;
-
-          doc.setDrawColor(226, 232, 240);
-          doc.setLineWidth(0.3);
-          doc.line(14, 200, 283, 200);
-
-          doc.setFontSize(7.5);
-          doc.setFont('helvetica', 'normal');
-          doc.setTextColor(148, 163, 184);
-          doc.text('Dokumen resmi Sistem Manajemen Stok Warung Prapatan', 14, 204);
-          doc.text(`Halaman ${pageCurrent} dari ${pageCount}`, 283, 204, { align: 'right' });
-        }
-      });
-
-      const pdfArrayBuffer = doc.output('arraybuffer');
-      const filename = `Laporan-Transaksi-Warung-Prapatan-${stamp}.pdf`;
-
-      return new NextResponse(Buffer.from(pdfArrayBuffer), {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/pdf',
-          'Content-Disposition': `attachment; filename="${filename}"`
-        }
-      });
+    const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
+    return new NextResponse(pdfBuffer, {
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="Laporan-Transaksi-${stamp}.pdf"`
+      }
+    });
+  } catch (err: any) {
+    if (err instanceof BusinessError) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
     }
-
-    return NextResponse.json({ error: 'Format tidak didukung' }, { status: 400 });
-  } catch (error) {
-    console.error('Error generating export:', error);
-    return NextResponse.json({ error: 'Gagal mengekspor laporan' }, { status: 500 });
+    console.error('Error generating report:', err);
+    return NextResponse.json({ error: 'Gagal mengunduh laporan' }, { status: 500 });
   }
 }
