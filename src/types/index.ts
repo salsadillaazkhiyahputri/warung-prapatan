@@ -17,6 +17,9 @@ export interface Product {
   stock_current: number;
   stock_minimum: number;
   created_at: string;
+  is_active?: boolean;
+  last_counted_at?: string | null;
+  last_counted_qty?: number | null;
 }
 
 export interface Supplier {

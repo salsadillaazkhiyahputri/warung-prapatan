@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Modal } from '@/components/ui/Modal';
-import { Badge } from '@/components/ui/Badge';
 import { Product } from '@/types';
 import {
   Plus,
@@ -16,13 +15,24 @@ import {
   Boxes
 } from 'lucide-react';
 
-const CATEGORIES = ['Semua', 'Mie', 'Sabun', 'Bumbu', 'Minuman', 'Sembako'];
+const FOURTEEN_DAYS_MS = 14 * 24 * 60 * 60 * 1000;
+
+const DEFAULT_CATEGORIES = [
+  'Makanan',
+  'Minuman',
+  'Bumbu',
+  'Perlengkapan',
+  'Sembako',
+  'Mie',
+  'Sabun',
+  'Lainnya'
+];
 
 export default function ProdukPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('Semua');
+  const [selectedCategory, setSelectedCategory] = useState('Semua Kategori');
 
   // Modals state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -33,7 +43,7 @@ export default function ProdukPage() {
   // Form states
   const [formData, setFormData] = useState({
     name: '',
-    category: 'Mie',
+    category: 'Makanan',
     unit: 'pcs',
     qty_per_karton: null as number | null,
     stock_current: 0,
@@ -50,7 +60,9 @@ export default function ProdukPage() {
       let url = '/api/products';
       const params = new URLSearchParams();
       if (searchQuery) params.append('q', searchQuery);
-      if (selectedCategory !== 'Semua') params.append('category', selectedCategory);
+      if (selectedCategory !== 'Semua Kategori' && selectedCategory !== 'Semua') {
+        params.append('category', selectedCategory);
+      }
       if (params.toString()) url += `?${params.toString()}`;
 
       const res = await fetch(url);
@@ -79,11 +91,34 @@ export default function ProdukPage() {
     setTimeout(() => setToastMessage(''), 3000);
   };
 
+  // Dinamis kategori untuk dropdown filter
+  const categoryOptions = useMemo(() => {
+    const list = new Set<string>(DEFAULT_CATEGORIES);
+    products.forEach((p) => {
+      if (p.category) list.add(p.category);
+    });
+    return Array.from(list);
+  }, [products]);
+
+  // Format status terakhir dihitung stok opname
+  const formatLastCounted = (dateStr?: string | null) => {
+    if (!dateStr) {
+      return { text: 'Belum pernah', isUrgent: true };
+    }
+    const diffMs = Date.now() - new Date(dateStr).getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const isUrgent = diffMs > FOURTEEN_DAYS_MS;
+
+    if (diffDays <= 0) return { text: 'Hari ini', isUrgent: false };
+    if (diffDays === 1) return { text: 'Kemarin', isUrgent: false };
+    return { text: `${diffDays} hari lalu`, isUrgent };
+  };
+
   // 1. Tambah Produk
   const openAddModal = () => {
     setFormData({
       name: '',
-      category: 'Mie',
+      category: 'Makanan',
       unit: 'pcs',
       qty_per_karton: null,
       stock_current: 0,
@@ -101,6 +136,10 @@ export default function ProdukPage() {
       setFormError('Nama produk wajib diisi');
       return;
     }
+    if (!formData.category.trim()) {
+      setFormError('Kategori produk wajib diisi');
+      return;
+    }
 
     setIsSaving(true);
     try {
@@ -110,18 +149,16 @@ export default function ProdukPage() {
         body: JSON.stringify(formData)
       });
 
-      const data = await res.json();
+      const json = await res.json();
       if (!res.ok) {
-        setFormError(data.error || 'Gagal menambahkan produk');
-        setIsSaving(false);
-        return;
+        setFormError(json.error || 'Gagal menambahkan produk');
+      } else {
+        setIsAddModalOpen(false);
+        showToast('Produk berhasil ditambahkan');
+        fetchProducts();
       }
-
-      setIsAddModalOpen(false);
-      showToast(`Produk "${formData.name}" berhasil ditambahkan`);
-      fetchProducts();
     } catch {
-      setFormError('Terjadi kesalahan pada server');
+      setFormError('Terjadi kesalahan jaringan');
     } finally {
       setIsSaving(false);
     }
@@ -133,7 +170,7 @@ export default function ProdukPage() {
     setFormData({
       name: product.name,
       category: product.category,
-      unit: product.unit,
+      unit: product.unit || 'pcs',
       qty_per_karton: product.qty_per_karton,
       stock_current: product.stock_current,
       stock_minimum: product.stock_minimum
@@ -160,18 +197,16 @@ export default function ProdukPage() {
         body: JSON.stringify(formData)
       });
 
-      const data = await res.json();
+      const json = await res.json();
       if (!res.ok) {
-        setFormError(data.error || 'Gagal memperbarui produk');
-        setIsSaving(false);
-        return;
+        setFormError(json.error || 'Gagal memperbarui produk');
+      } else {
+        setIsEditModalOpen(false);
+        showToast('Data produk berhasil diperbarui');
+        fetchProducts();
       }
-
-      setIsEditModalOpen(false);
-      showToast(`Produk "${formData.name}" berhasil diperbarui`);
-      fetchProducts();
     } catch {
-      setFormError('Terjadi kesalahan pada server');
+      setFormError('Terjadi kesalahan jaringan');
     } finally {
       setIsSaving(false);
     }
@@ -193,10 +228,11 @@ export default function ProdukPage() {
 
       if (res.ok) {
         setIsDeleteModalOpen(false);
-        showToast(`Produk "${selectedProduct.name}" berhasil dihapus`);
+        showToast('Produk berhasil dihapus');
         fetchProducts();
       } else {
-        alert('Gagal menghapus produk');
+        const json = await res.json();
+        alert(json.error || 'Gagal menghapus produk');
       }
     } catch {
       alert('Terjadi kesalahan saat menghapus');
@@ -208,7 +244,7 @@ export default function ProdukPage() {
   return (
     <DashboardLayout
       title="Produk"
-      subtitle="Katalog barang toko, stok saat ini, dan konversi satuan karton"
+      subtitle="Katalog barang toko, stok saat ini (pcs), dan kapan terakhir dihitung lewat stok opname"
     >
       {/* Toast Notification */}
       {toastMessage && (
@@ -272,19 +308,19 @@ export default function ProdukPage() {
           </form>
 
           {/* Category Dropdown */}
-          <div style={{ width: '160px' }}>
+          <div style={{ width: '170px' }}>
             <select
               className="form-select"
               style={{ height: '40px', fontSize: '14px' }}
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
             >
-              <option value="Semua">Semua Kategori</option>
-              <option value="Sembako">Sembako</option>
-              <option value="Minuman">Minuman</option>
-              <option value="Mie">Mie</option>
-              <option value="Bumbu">Bumbu</option>
-              <option value="Sabun">Sabun</option>
+              <option value="Semua Kategori">Semua Kategori</option>
+              {categoryOptions.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
             </select>
           </div>
         </div>
@@ -307,23 +343,22 @@ export default function ProdukPage() {
         </div>
       </div>
 
-      {/* Tabel Data Produk Sesuai Proposal */}
+      {/* Tabel Data Produk Sesuai Desain Mockup */}
       <div className="table-container">
         <table className="data-table">
           <thead>
             <tr>
-              <th style={{ width: '32%' }}>Nama</th>
-              <th style={{ width: '18%' }}>Kategori</th>
-              <th style={{ width: '14%' }}>Satuan</th>
-              <th style={{ width: '16%' }}>Per karton</th>
-              <th style={{ width: '12%' }}>Stok</th>
-              <th style={{ width: '80px', textAlign: 'center' }}>Aksi</th>
+              <th style={{ width: '32%' }}>NAMA</th>
+              <th style={{ width: '22%' }}>KATEGORI</th>
+              <th style={{ width: '18%' }}>STOK</th>
+              <th style={{ width: '18%' }}>TERAKHIR DIHITUNG</th>
+              <th style={{ width: '10%', textAlign: 'center' }}>AKSI</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: '36px', color: '#94A3B8' }}>
+                <td colSpan={5} style={{ textAlign: 'center', padding: '36px', color: '#94A3B8' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                     <div style={{ width: '16px', height: '16px', borderRadius: '50%', border: '2px solid #CBD5E1', borderTopColor: '#0F172A', animation: 'spin 0.6s linear infinite' }} />
                     <span>Memuat data produk...</span>
@@ -332,7 +367,7 @@ export default function ProdukPage() {
               </tr>
             ) : products.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>
+                <td colSpan={5} style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>
                   <Boxes size={32} style={{ color: '#94A3B8', margin: '0 auto 8px', display: 'block' }} />
                   <span>Tidak ada produk yang sesuai.</span>
                 </td>
@@ -340,6 +375,7 @@ export default function ProdukPage() {
             ) : (
               products.map((item) => {
                 const isLowStock = item.stock_current <= item.stock_minimum;
+                const lastCount = formatLastCounted(item.last_counted_at);
 
                 return (
                   <tr key={item.id}>
@@ -348,24 +384,29 @@ export default function ProdukPage() {
                         {item.name}
                       </div>
                     </td>
-                    <td style={{ color: '#334155', fontSize: '14px' }}>
+                    <td style={{ color: '#475569', fontSize: '14px' }}>
                       {item.category}
-                    </td>
-                    <td style={{ color: '#475569', fontSize: '14px' }}>
-                      {item.unit}
-                    </td>
-                    <td style={{ color: '#475569', fontSize: '14px' }}>
-                      {item.qty_per_karton ?? '-'}
                     </td>
                     <td>
                       <span
                         style={{
-                          fontSize: '14.5px',
+                          fontSize: '14px',
                           fontWeight: isLowStock ? 700 : 500,
                           color: isLowStock ? '#DC2626' : '#0F172A'
                         }}
                       >
-                        {item.stock_current}
+                        {item.stock_current} pcs
+                      </span>
+                    </td>
+                    <td>
+                      <span
+                        style={{
+                          fontSize: '14px',
+                          fontWeight: lastCount.isUrgent ? 700 : 400,
+                          color: lastCount.isUrgent ? '#DC2626' : '#64748B'
+                        }}
+                      >
+                        {lastCount.text}
                       </span>
                     </td>
                     <td style={{ textAlign: 'center' }}>
@@ -375,12 +416,13 @@ export default function ProdukPage() {
                           style={{
                             padding: '6px',
                             borderRadius: 'var(--radius-sm)',
-                            color: '#334155',
-                            background: '#F8FAFC',
+                            color: '#475569',
+                            background: '#FFFFFF',
                             border: '1px solid #E2E8F0',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
+                            cursor: 'pointer',
                             transition: 'all var(--transition-fast)'
                           }}
                           className="action-btn-edit"
@@ -399,6 +441,7 @@ export default function ProdukPage() {
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
+                            cursor: 'pointer',
                             transition: 'all var(--transition-fast)'
                           }}
                           className="action-btn-delete"
@@ -464,12 +507,11 @@ export default function ProdukPage() {
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
               >
-                <option value="Mie">Mie</option>
-                <option value="Sabun">Sabun</option>
-                <option value="Bumbu">Bumbu</option>
-                <option value="Minuman">Minuman</option>
-                <option value="Sembako">Sembako</option>
-                <option value="Lainnya">Lainnya</option>
+                {DEFAULT_CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -478,7 +520,7 @@ export default function ProdukPage() {
               <input
                 type="text"
                 className="form-input"
-                placeholder="pcs / bungkus / botol"
+                placeholder="pcs"
                 value={formData.unit}
                 onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
                 required
@@ -488,22 +530,7 @@ export default function ProdukPage() {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
             <div className="form-group">
-              <label className="form-label">Isi per Karton</label>
-              <input
-                type="number"
-                min={1}
-                className="form-input"
-                placeholder="Opsional (misal: 40)"
-                value={formData.qty_per_karton ?? ''}
-                onChange={(e) => setFormData({
-                  ...formData,
-                  qty_per_karton: e.target.value ? parseInt(e.target.value, 10) : null
-                })}
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Stok Awal ({formData.unit})</label>
+              <label className="form-label">Stok Awal (pcs)</label>
               <input
                 type="number"
                 min={0}
@@ -512,18 +539,18 @@ export default function ProdukPage() {
                 onChange={(e) => setFormData({ ...formData, stock_current: parseInt(e.target.value, 10) || 0 })}
               />
             </div>
-          </div>
 
-          <div className="form-group">
-            <label className="form-label">Batas Minimum Stok ({formData.unit}) *</label>
-            <input
-              type="number"
-              min={0}
-              className="form-input"
-              value={formData.stock_minimum}
-              onChange={(e) => setFormData({ ...formData, stock_minimum: parseInt(e.target.value, 10) || 0 })}
-              required
-            />
+            <div className="form-group">
+              <label className="form-label">Batas Minimum Stok (pcs) *</label>
+              <input
+                type="number"
+                min={0}
+                className="form-input"
+                value={formData.stock_minimum}
+                onChange={(e) => setFormData({ ...formData, stock_minimum: parseInt(e.target.value, 10) || 0 })}
+                required
+              />
+            </div>
           </div>
 
           <div
@@ -601,12 +628,11 @@ export default function ProdukPage() {
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
               >
-                <option value="Mie">Mie</option>
-                <option value="Sabun">Sabun</option>
-                <option value="Bumbu">Bumbu</option>
-                <option value="Minuman">Minuman</option>
-                <option value="Sembako">Sembako</option>
-                <option value="Lainnya">Lainnya</option>
+                {DEFAULT_CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -615,7 +641,6 @@ export default function ProdukPage() {
               <input
                 type="text"
                 className="form-input"
-                placeholder="pcs / bungkus / botol"
                 value={formData.unit}
                 onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
                 required
@@ -625,21 +650,7 @@ export default function ProdukPage() {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
             <div className="form-group">
-              <label className="form-label">Isi per Karton</label>
-              <input
-                type="number"
-                min={1}
-                className="form-input"
-                value={formData.qty_per_karton ?? ''}
-                onChange={(e) => setFormData({
-                  ...formData,
-                  qty_per_karton: e.target.value ? parseInt(e.target.value, 10) : null
-                })}
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Stok Saat Ini ({formData.unit})</label>
+              <label className="form-label">Stok Saat Ini (pcs)</label>
               <input
                 type="number"
                 min={0}
@@ -648,18 +659,18 @@ export default function ProdukPage() {
                 onChange={(e) => setFormData({ ...formData, stock_current: parseInt(e.target.value, 10) || 0 })}
               />
             </div>
-          </div>
 
-          <div className="form-group">
-            <label className="form-label">Batas Minimum Stok ({formData.unit}) *</label>
-            <input
-              type="number"
-              min={0}
-              className="form-input"
-              value={formData.stock_minimum}
-              onChange={(e) => setFormData({ ...formData, stock_minimum: parseInt(e.target.value, 10) || 0 })}
-              required
-            />
+            <div className="form-group">
+              <label className="form-label">Batas Minimum Stok (pcs) *</label>
+              <input
+                type="number"
+                min={0}
+                className="form-input"
+                value={formData.stock_minimum}
+                onChange={(e) => setFormData({ ...formData, stock_minimum: parseInt(e.target.value, 10) || 0 })}
+                required
+              />
+            </div>
           </div>
 
           <div
