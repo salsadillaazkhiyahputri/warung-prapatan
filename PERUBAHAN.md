@@ -89,7 +89,10 @@ Hasil: Kompilasi TypeScript bersih tanpa error (`exit code 0`), dan build Next.j
 ## 3. Laporan Status Pekerjaan (Jujur & Transparan)
 
 ### 1. Yang sudah diperbaiki dan dibuktikan dengan tes atau build:
-- [x] Helper validasi `src/lib/validate.ts` dan pemetaan error RPC (dibuktikan dengan 34 unit test lulus).
+- [x] Helper validasi `src/lib/validate.ts` dan pemetaan error RPC (dibuktikan dengan 38 unit test lulus).
+- [x] Kompatibilitas mundur dekode token sesi `decodeSessionToken` di `src/lib/auth.ts` (mendukung JWT HMAC-SHA256 modern dan fallback base64 legacy agar sesi browser aktif tidak terputus/401).
+- [x] Pencegahan infinite redirect bounce loop di `src/proxy.ts` dan `src/components/layout/DashboardLayout.tsx`.
+- [x] Pemulihan layout tabel penuh (.data-table) yang rapi di `src/app/dashboard/page.tsx` untuk "Produk Stok Menipis" dan "Perlu Dihitung (Stok Opname)".
 - [x] Deteksi tanggal tidak sah (misal 2026-02-31) dan rentang tanggal terbalik menghasilkan HTTP 400 (dibuktikan dengan unit test).
 - [x] Penetral formula Excel untuk teks yang diawali `=`, `+`, `-`, `@` (dibuktikan dengan unit test).
 - [x] Pembatasan jenis supplier (`utama`, `cadangan`, `grosir`) dan kategori dinamis (dibuktikan dengan unit test).
@@ -106,3 +109,4 @@ Hasil: Kompilasi TypeScript bersih tanpa error (`exit code 0`), dan build Next.j
 
 ### 3. Yang tidak cocok dengan kontrak database atau butuh keputusan manusia:
 - **Tabel `xlsx` pada dependensi**: Hasil `npm audit` melaporkan 1 temuan tingkat tinggi (High Severity) pada library `xlsx` terkait Prototype Pollution & ReDoS. Karena ekspor file spreadsheet di aplikasi ini menggunakan library `exceljs` yang lebih modern dan aman, paket `xlsx` dapat dipertimbangkan untuk di-uninstall jika bot Telegram atau script lain tidak menggunakannya.
+

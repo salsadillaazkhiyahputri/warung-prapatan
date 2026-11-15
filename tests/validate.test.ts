@@ -11,6 +11,7 @@ import {
   mapRpcError,
   BusinessError
 } from '../src/lib/validate';
+import { createSessionToken, decodeSessionToken } from '../src/lib/auth';
 
 describe('1. Validasi Angka Bulat Ketat (parseInteger)', () => {
   it('berhasil mengurai bilangan bulat positif yang sah', () => {
@@ -198,3 +199,56 @@ describe('8. Pemetaan Kode Error RPC (mapRpcError)', () => {
     expect(res.message).toContain('Kunci idempotensi');
   });
 });
+
+describe('9. Pengujian Sesi Token & Kompatibilitas Mundur (decodeSessionToken)', () => {
+  it('berhasil mendekode token HMAC-SHA256 modern 3-bagian', () => {
+    const mockUser = {
+      id: 'e1a9c1e0-827b-4573-b391-7f8f9e68c5b1',
+      username: 'pemilik',
+      password_hash: 'hash',
+      created_at: new Date().toISOString()
+    };
+    const token = createSessionToken(mockUser);
+    expect(token.split('.').length).toBe(3);
+
+    const session = decodeSessionToken(token);
+    expect(session).not.toBeNull();
+    expect(session?.userId).toBe(mockUser.id);
+    expect(session?.username).toBe('pemilik');
+  });
+
+  it('berhasil mendekode token sesi legacy (base64 JSON) untuk kompatibilitas browser', () => {
+    const legacyPayload = {
+      userId: 'e1a9c1e0-827b-4573-b391-7f8f9e68c5b1',
+      username: 'pemilik',
+      role: 'pemilik',
+      expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000
+    };
+    const legacyToken = Buffer.from(JSON.stringify(legacyPayload)).toString('base64');
+    expect(legacyToken.includes('.')).toBe(false);
+
+    const session = decodeSessionToken(legacyToken);
+    expect(session).not.toBeNull();
+    expect(session?.userId).toBe(legacyPayload.userId);
+    expect(session?.username).toBe('pemilik');
+  });
+
+  it('menolak token sesi legacy yang telah kedaluwarsa', () => {
+    const expiredPayload = {
+      userId: 'e1a9c1e0-827b-4573-b391-7f8f9e68c5b1',
+      username: 'pemilik',
+      role: 'pemilik',
+      expiresAt: Date.now() - 10000 // sudah lewat
+    };
+    const expiredToken = Buffer.from(JSON.stringify(expiredPayload)).toString('base64');
+    expect(decodeSessionToken(expiredToken)).toBeNull();
+  });
+
+  it('menolak token palsu atau bertanda tangan tidak cocok', () => {
+    expect(decodeSessionToken('token.palsu.sembarangan')).toBeNull();
+    expect(decodeSessionToken('')).toBeNull();
+    expect(decodeSessionToken('not-a-token')).toBeNull();
+  });
+});
+
+

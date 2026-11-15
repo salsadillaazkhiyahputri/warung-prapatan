@@ -301,3 +301,4 @@ export function mapRpcError(
 export function escapeSearchQuery(q: string): string {
   return q.replace(/[%_\\]/g, '\\$&');
 }
+

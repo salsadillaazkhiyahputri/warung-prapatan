@@ -88,36 +88,51 @@ export function createSessionToken(user: User): string {
 /**
  * Verifikasi token JWT: tanda tangan dicocokkan dengan HMAC-SHA256,
  * kedaluwarsa diperiksa. Token palsu atau kedaluwarsa akan ditolak (return null).
+ * Mendukung backward-compatibility untuk token sesi legacy (base64 JSON).
  */
 export function decodeSessionToken(token: string): SessionData | null {
   try {
     if (!token || typeof token !== 'string') return null;
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
 
-    const [b64Header, b64Payload, signature] = parts;
-    const dataToSign = `${b64Header}.${b64Payload}`;
+    // 1. Coba decode JWT token berformat HMAC-SHA256 (3 bagian: header.payload.signature)
+    if (token.includes('.')) {
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        const [b64Header, b64Payload, signature] = parts;
+        const dataToSign = `${b64Header}.${b64Payload}`;
 
-    const expectedSignature = crypto
-      .createHmac('sha256', JWT_SECRET)
-      .update(dataToSign)
-      .digest('base64url');
+        const expectedSignature = crypto
+          .createHmac('sha256', JWT_SECRET)
+          .update(dataToSign)
+          .digest('base64url');
 
-    // Timing-safe comparison untuk mencegah timing attack
-    const sigBuffer = Buffer.from(signature);
-    const expectedBuffer = Buffer.from(expectedSignature);
-    if (sigBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(sigBuffer, expectedBuffer)) {
-      return null;
+        // Timing-safe comparison untuk mencegah timing attack
+        const sigBuffer = Buffer.from(signature);
+        const expectedBuffer = Buffer.from(expectedSignature);
+        if (sigBuffer.length === expectedBuffer.length && crypto.timingSafeEqual(sigBuffer, expectedBuffer)) {
+          const rawPayload = Buffer.from(b64Payload, 'base64url').toString('utf-8');
+          const data = JSON.parse(rawPayload) as SessionData;
+
+          if (data && data.userId && (!data.expiresAt || data.expiresAt >= Date.now())) {
+            return data;
+          }
+        }
+      }
     }
 
-    const rawPayload = Buffer.from(b64Payload, 'base64url').toString('utf-8');
-    const data = JSON.parse(rawPayload) as SessionData;
-
-    if (!data.expiresAt || data.expiresAt < Date.now()) {
-      return null;
+    // 2. Fallback backward-compatible untuk token sesi lama (single base64 JSON payload)
+    // yang tersimpan di browser sebelum pembaruan HMAC-SHA256
+    try {
+      const legacyRaw = Buffer.from(token, 'base64').toString('utf-8');
+      const legacyData = JSON.parse(legacyRaw) as SessionData;
+      if (legacyData && legacyData.userId && (!legacyData.expiresAt || legacyData.expiresAt >= Date.now())) {
+        return legacyData;
+      }
+    } catch {
+      // bukan legacy token yang valid
     }
 
-    return data;
+    return null;
   } catch {
     return null;
   }

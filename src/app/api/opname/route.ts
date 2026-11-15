@@ -42,3 +42,4 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Gagal mengambil data stok opname' }, { status: 500 });
   }
 }
+
