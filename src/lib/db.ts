@@ -472,6 +472,8 @@ export const TransactionService = {
             type: t.type,
             qty: t.qty,
             note: t.note,
+            source: t.source,
+            opname_id: t.opname_id,
             created_at: t.created_at,
             product: t.products,
             supplier: t.suppliers

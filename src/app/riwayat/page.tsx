@@ -215,9 +215,30 @@ export default function RiwayatPage() {
     }
   };
 
+  const getTxBadgeInfo = (tx: Transaction) => {
+    const isOpname = tx.source === 'opname' || Boolean(tx.opname_id) || (tx.note && tx.note.toLowerCase().includes('opname'));
+    if (tx.type === 'in') {
+      if (isOpname) {
+        return { label: 'Koreksi (opname)', isPositive: true };
+      }
+      return { label: 'Masuk', isPositive: true };
+    } else {
+      if (isOpname) {
+        return { label: 'Keluar (opname)', isPositive: false };
+      }
+      return { label: 'Keluar (manual)', isPositive: false };
+    }
+  };
+
+  const getSupplierOrNote = (tx: Transaction) => {
+    if (tx.supplier?.name) return tx.supplier.name;
+    if (tx.note) return tx.note;
+    return '—';
+  };
+
   return (
     <DashboardLayout
-      title="Riwayat transaksi"
+      title="Riwayat Transaksi Stok"
       subtitle="Catatan aktivitas keluar masuk barang toko"
     >
       {/* Toast Notification */}
@@ -290,7 +311,7 @@ export default function RiwayatPage() {
               style={{ gap: '6px' }}
             >
               <Download size={14} />
-              <span>{isExporting ? 'Mengunduh...' : 'Ekspor'}</span>
+              <span>{isExporting ? 'Mengunduh...' : 'Ekspor Laporan'}</span>
               <ChevronDown size={14} />
             </button>
 
@@ -607,16 +628,16 @@ export default function RiwayatPage() {
         </div>
       </div>
 
-      {/* Tabel Riwayat Transaksi Sesuai Proposal */}
+      {/* Tabel Riwayat Transaksi Sesuai Desain Mockup */}
       <div className="table-container">
         <table className="data-table">
           <thead>
             <tr>
-              <th style={{ width: '22%' }}>Tanggal</th>
-              <th style={{ width: '28%' }}>Produk</th>
-              <th style={{ width: '16%' }}>Jenis</th>
-              <th style={{ width: '16%' }}>Jumlah</th>
-              <th style={{ width: '18%' }}>Supplier</th>
+              <th style={{ width: '22%', textAlign: 'left', padding: '14px 20px' }}>TANGGAL &amp; WAKTU</th>
+              <th style={{ width: '16%', textAlign: 'left', padding: '14px 20px' }}>JENIS</th>
+              <th style={{ width: '26%', textAlign: 'left', padding: '14px 20px' }}>PRODUK</th>
+              <th style={{ width: '16%', textAlign: 'left', padding: '14px 20px' }}>JUMLAH</th>
+              <th style={{ width: '20%', textAlign: 'left', padding: '14px 20px' }}>SUPPLIER / CATATAN</th>
             </tr>
           </thead>
           <tbody>
@@ -638,37 +659,52 @@ export default function RiwayatPage() {
               </tr>
             ) : (
               transactions.map((tx) => {
-                const isIn = tx.type === 'in';
+                const badgeInfo = getTxBadgeInfo(tx);
+                const isPositive = badgeInfo.isPositive;
+
                 return (
                   <tr key={tx.id}>
-                    <td style={{ color: '#475569', fontSize: '13.5px' }}>
+                    <td style={{ textAlign: 'left', padding: '14px 20px', color: '#475569', fontSize: '13.5px', whiteSpace: 'nowrap' }}>
                       {formatDateTime(tx.created_at)}
                     </td>
-                    <td>
-                      <span style={{ fontWeight: 600, color: '#0F172A', fontSize: '14.5px' }}>
+                    <td style={{ textAlign: 'left', padding: '14px 20px', verticalAlign: 'middle' }}>
+                      <span
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: '4px 10px',
+                          borderRadius: 'var(--radius-full)',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          lineHeight: 1.2,
+                          background: isPositive ? '#ECFDF5' : '#FEF2F2',
+                          color: isPositive ? '#047857' : '#B91C1C',
+                          border: `1px solid ${isPositive ? '#A7F3D0' : '#FECACA'}`,
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        {badgeInfo.label}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'left', padding: '14px 20px' }}>
+                      <span style={{ fontWeight: 600, color: '#0F172A', fontSize: '14.5px', display: 'block' }}>
                         {tx.product?.name || `Produk #${tx.product_id}`}
                       </span>
                     </td>
-                    <td>
-                      <Badge type={isIn ? 'in' : 'out'}>
-                        {isIn ? 'Masuk' : 'Keluar'}
-                      </Badge>
-                    </td>
-                    <td>
+                    <td style={{ textAlign: 'left', padding: '14px 20px' }}>
                       <span
                         style={{
                           fontWeight: 600,
-                          fontSize: '14.5px',
-                          color: isIn ? '#059669' : '#DC2626'
+                          fontSize: '14px',
+                          color: isPositive ? '#059669' : '#DC2626'
                         }}
                       >
-                        {isIn ? '+' : '-'}{tx.qty} {tx.product?.unit || 'pcs'}
+                        {isPositive ? `+${tx.qty}` : `-${tx.qty}`} {tx.product?.unit || 'pcs'}
                       </span>
                     </td>
-                    <td>
-                      <span style={{ color: isIn ? '#0F172A' : '#94A3B8', fontSize: '14px', fontWeight: isIn ? 500 : 400 }}>
-                        {isIn ? (tx.supplier?.name || '-') : '—'}
-                      </span>
+                    <td style={{ textAlign: 'left', padding: '14px 20px', color: '#475569', fontSize: '13.5px' }}>
+                      {getSupplierOrNote(tx)}
                     </td>
                   </tr>
                 );

@@ -39,6 +39,8 @@ export interface Transaction {
   type: TransactionType;
   qty: number; // in unit (pcs)
   note: string | null;
+  source?: 'manual' | 'opname';
+  opname_id?: number | null;
   created_at: string;
   // Joined relation fields for UI:
   product?: Product;
