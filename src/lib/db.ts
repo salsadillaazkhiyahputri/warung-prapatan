@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import bcrypt from 'bcryptjs';
 import { supabaseAdmin, isSupabaseConfigured } from './supabase';
+import { sqlQuery, isPostgresConfigured } from './postgres';
 import { User, Product, Supplier, Transaction, DashboardStats, TransactionType } from '@/types';
 
 const DATA_FILE_PATH = path.join(process.cwd(), 'data', 'warung_prapatan.json');
@@ -138,6 +139,36 @@ export const AuthService = {
 // ============================================================================
 export const ProductService = {
   async getAll(query?: string, category?: string): Promise<Product[]> {
+    if (isPostgresConfigured()) {
+      try {
+        let sql = `
+          SELECT 
+            id, name, category, unit, qty_per_karton, 
+            stock_current, stock_minimum, is_active, 
+            last_counted_at, last_counted_qty, created_at
+          FROM v_products 
+          WHERE 1=1
+        `;
+        const params: any[] = [];
+        if (category && category !== 'Semua') {
+          params.push(category);
+          sql += ` AND category ILIKE $${params.length}`;
+        }
+        if (query) {
+          params.push(`%${query}%`);
+          sql += ` AND (name ILIKE $${params.length} OR category ILIKE $${params.length})`;
+        }
+        sql += ` ORDER BY name ASC`;
+
+        const rows = await sqlQuery<Product>(sql, params);
+        if (rows && rows.length > 0) {
+          return rows.map(normalizeProduct);
+        }
+      } catch (err) {
+        console.warn('PostgreSQL query v_products gagal, fallback:', err);
+      }
+    }
+
     if (isSupabaseConfigured && supabaseAdmin) {
       try {
         let builder = supabaseAdmin.from('products').select('*').order('name', { ascending: true });
@@ -148,7 +179,7 @@ export const ProductService = {
           builder = builder.ilike('name', `%${query}%`);
         }
         const { data, error } = await builder;
-        if (!error && data) return (data as Product[]).map(normalizeProduct);
+        if (!error && data && data.length > 0) return (data as Product[]).map(normalizeProduct);
       } catch (err) {
         console.warn('Supabase query produk gagal, gunakan data lokal:', err);
       }
@@ -167,6 +198,17 @@ export const ProductService = {
   },
 
   async getById(id: number): Promise<Product | null> {
+    if (isPostgresConfigured()) {
+      try {
+        const rows = await sqlQuery<Product>(
+          `SELECT id, name, category, unit, qty_per_karton, stock_current, stock_minimum, is_active, last_counted_at, last_counted_qty, created_at FROM v_products WHERE id = $1`,
+          [id]
+        );
+        if (rows && rows.length > 0) return normalizeProduct(rows[0]);
+      } catch {
+        // fallback
+      }
+    }
     if (isSupabaseConfigured && supabaseAdmin) {
       try {
         const { data } = await supabaseAdmin.from('products').select('*').eq('id', id).single();
@@ -176,7 +218,8 @@ export const ProductService = {
       }
     }
     const db = readLocalDb();
-    return db.products.find(p => p.id === id) || null;
+    const found = db.products.find(p => p.id === id);
+    return found ? normalizeProduct(found) : null;
   },
 
   async findByName(name: string): Promise<Product | null> {
@@ -303,7 +346,20 @@ export const SupplierService = {
     let suppliers: Supplier[] = [];
     let transactions: Transaction[] = [];
 
-    if (isSupabaseConfigured && supabaseAdmin) {
+    if (isPostgresConfigured()) {
+      try {
+        const rows = await sqlQuery<Supplier>(
+          `SELECT id, name, created_at FROM v_suppliers ORDER BY name ASC`
+        );
+        if (rows && rows.length > 0) {
+          suppliers = rows;
+        }
+      } catch (err) {
+        console.warn('PostgreSQL query v_suppliers gagal:', err);
+      }
+    }
+
+    if (suppliers.length === 0 && isSupabaseConfigured && supabaseAdmin) {
       try {
         const [supRes, trxRes] = await Promise.all([
           supabaseAdmin.from('suppliers').select('*').order('name', { ascending: true }),
@@ -316,9 +372,18 @@ export const SupplierService = {
       }
     }
 
+    const db = readLocalDb();
     if (suppliers.length === 0) {
-      const db = readLocalDb();
       suppliers = [...db.suppliers];
+      transactions = [...db.transactions];
+    } else {
+      // Pastikan supplier lokal juga tersedia jika ada relasi di transaksi lokal
+      const existingIds = new Set(suppliers.map(s => s.id));
+      for (const localSup of db.suppliers) {
+        if (!existingIds.has(localSup.id)) {
+          suppliers.push(localSup);
+        }
+      }
       transactions = [...db.transactions];
     }
 
@@ -340,6 +405,17 @@ export const SupplierService = {
   },
 
   async getById(id: number): Promise<Supplier | null> {
+    if (isPostgresConfigured()) {
+      try {
+        const rows = await sqlQuery<Supplier>(
+          `SELECT id, name, created_at FROM v_suppliers WHERE id = $1`,
+          [id]
+        );
+        if (rows && rows.length > 0) return rows[0];
+      } catch {
+        // fallback
+      }
+    }
     if (isSupabaseConfigured && supabaseAdmin) {
       try {
         const { data } = await supabaseAdmin.from('suppliers').select('*').eq('id', id).single();
@@ -439,6 +515,78 @@ export const TransactionService = {
     let transactions: Transaction[] = [];
     const products = await ProductService.getAll();
     const suppliers = await SupplierService.getAll();
+
+    if (isPostgresConfigured()) {
+      try {
+        let sql = `
+          SELECT 
+            id, created_at, tanggal_wib, type, qty, note,
+            product_id, product_name, category,
+            supplier_id, supplier_name, supplier_jenis,
+            source, opname_id
+          FROM v_transactions
+          WHERE 1=1
+        `;
+        const params: any[] = [];
+        if (filters?.type && filters.type !== 'all') {
+          params.push(filters.type);
+          sql += ` AND type = $${params.length}`;
+        }
+        if (filters?.productId) {
+          params.push(filters.productId);
+          sql += ` AND product_id = $${params.length}`;
+        }
+        if (filters?.startDate) {
+          params.push(new Date(filters.startDate).toISOString());
+          sql += ` AND created_at >= $${params.length}`;
+        }
+        if (filters?.endDate) {
+          const end = new Date(filters.endDate);
+          end.setHours(23, 59, 59, 999);
+          params.push(end.toISOString());
+          sql += ` AND created_at <= $${params.length}`;
+        }
+        sql += ` ORDER BY created_at DESC`;
+
+        const rows = await sqlQuery<any>(sql, params);
+        if (rows && rows.length > 0) {
+          return rows.map(t => {
+            const matchedProd = products.find(p => p.id === t.product_id) || {
+              id: t.product_id,
+              name: t.product_name,
+              category: t.category,
+              unit: 'pcs',
+              qty_per_karton: null,
+              stock_current: 0,
+              stock_minimum: DEFAULT_STOCK_MINIMUM,
+              created_at: t.created_at
+            };
+            const matchedSup = t.supplier_id ? (suppliers.find(s => s.id === t.supplier_id) || {
+              id: t.supplier_id,
+              name: t.supplier_name,
+              created_at: t.created_at
+            }) : undefined;
+
+            return {
+              id: t.id,
+              product_id: t.product_id,
+              user_id: '',
+              supplier_id: t.supplier_id,
+              type: t.type,
+              qty: t.qty,
+              note: t.note,
+              source: t.source,
+              opname_id: t.opname_id,
+              created_at: t.created_at,
+              product: matchedProd,
+              supplier: matchedSup
+            };
+          });
+        }
+      } catch (err) {
+        console.warn('PostgreSQL query v_transactions gagal, fallback:', err);
+      }
+    }
 
     if (isSupabaseConfigured && supabaseAdmin) {
       try {
