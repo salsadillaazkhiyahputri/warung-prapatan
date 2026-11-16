@@ -9,6 +9,7 @@ import { relativeDayLabel, isCountStale } from '@/lib/stock-labels';
 import { formatDateOnly } from '@/lib/export-utils';
 import { otherSuppliersLabel } from '@/lib/product-suppliers';
 import { BASE_CATEGORIES, CATEGORY_MAX_LENGTH, normalizeCategory } from '@/lib/categories';
+import { getClientCache, setClientCache, invalidateClientCache } from '@/lib/client-cache';
 
 import {
   Plus,
@@ -31,8 +32,12 @@ const EMPTY_FORM = {
 };
 
 export default function ProdukPage() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [products, setProducts] = useState<Product[]>(() => {
+    return getClientCache<Product[]>('products:all') || [];
+  });
+  const [isLoading, setIsLoading] = useState(() => {
+    return !getClientCache<Product[]>('products:all');
+  });
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Semua');
   // Filter "Perlu dilengkapi" (barang dari bot, needs_review). Bisa dibuka dari kartu dashboard
@@ -69,8 +74,12 @@ export default function ProdukPage() {
   const [isCustomCategory, setIsCustomCategory] = useState(false);
   // Saran kategori di form (daftar tetap + kategori yang pernah dipakai) dan kategori untuk filter
   // (hanya yang dipakai produk aktif). Daftar tetap jadi nilai awal agar saran tidak pernah kosong.
-  const [categories, setCategories] = useState<string[]>([...BASE_CATEGORIES]);
-  const [usedCategories, setUsedCategories] = useState<string[]>([]);
+  const [categories, setCategories] = useState<string[]>(() => {
+    return getClientCache<string[]>('products:categories') || [...BASE_CATEGORIES];
+  });
+  const [usedCategories, setUsedCategories] = useState<string[]>(() => {
+    return getClientCache<string[]>('products:categories:used') || [];
+  });
 
   const fetchCategories = async () => {
     try {
@@ -104,48 +113,7 @@ export default function ProdukPage() {
 
   const renderCategoryInput = () => (
     <div className="form-group">
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-        <label className="form-label" style={{ margin: 0 }}>Kategori *</label>
-        {!isCustomCategory ? (
-          <button
-            type="button"
-            onClick={() => {
-              setIsCustomCategory(true);
-              setFormData((prev) => ({ ...prev, category: '' }));
-            }}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#2563EB',
-              fontSize: '12px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              padding: 0
-            }}
-          >
-            + Ketik Kategori Baru
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => {
-              setIsCustomCategory(false);
-              setFormData((prev) => ({ ...prev, category: categories[0] || DEFAULT_CATEGORY }));
-            }}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#64748B',
-              fontSize: '12px',
-              fontWeight: 500,
-              cursor: 'pointer',
-              padding: 0
-            }}
-          >
-            ← Pilih dari daftar
-          </button>
-        )}
-      </div>
+      <label className="form-label">Kategori *</label>
 
       {!isCustomCategory ? (
         <select
@@ -159,24 +127,43 @@ export default function ProdukPage() {
               setFormData((prev) => ({ ...prev, category: e.target.value }));
             }
           }}
+          style={{ height: '42px', fontSize: '14px', borderRadius: '8px' }}
           required
         >
           {categories.map((c) => (
             <option key={c} value={c}>{c}</option>
           ))}
-          <option value="__NEW__">+ Ketik Kategori Baru...</option>
+          <option disabled>──────────</option>
+          <option value="__NEW__">➕ Tambah Kategori Baru...</option>
         </select>
       ) : (
-        <input
-          type="text"
-          className="form-input"
-          value={formData.category}
-          onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-          placeholder="Ketik nama kategori baru..."
-          maxLength={CATEGORY_MAX_LENGTH + 10}
-          autoFocus
-          required
-        />
+        <div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <input
+              type="text"
+              className="form-input"
+              value={formData.category}
+              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+              placeholder="Ketik nama kategori baru..."
+              maxLength={CATEGORY_MAX_LENGTH + 10}
+              autoFocus
+              style={{ height: '42px', fontSize: '14px', borderRadius: '8px' }}
+              required
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setIsCustomCategory(false);
+                setFormData((prev) => ({ ...prev, category: categories[0] || DEFAULT_CATEGORY }));
+              }}
+              className="btn btn-secondary"
+              style={{ height: '42px', padding: '0 14px', fontSize: '13px', borderRadius: '8px' }}
+              title="Kembali ke pilihan daftar"
+            >
+              Batal
+            </button>
+          </div>
+        </div>
       )}
       {categoryHint && (
         <p style={{ fontSize: '12px', color: '#64748B', margin: '4px 0 0' }}>{categoryHint}</p>
@@ -198,7 +185,7 @@ export default function ProdukPage() {
   const [toastMessage, setToastMessage] = useState('');
 
   const fetchProducts = async () => {
-    setIsLoading(true);
+    if (products.length === 0) setIsLoading(true);
     try {
       let url = '/api/products';
       const params = new URLSearchParams();
@@ -210,6 +197,9 @@ export default function ProdukPage() {
       if (res.ok) {
         const data = await res.json();
         setProducts(data);
+        if (!searchQuery && selectedCategory === 'Semua') {
+          setClientCache('products:all', data);
+        }
       }
     } catch (err) {
       console.error('Error fetching products:', err);
@@ -270,6 +260,7 @@ export default function ProdukPage() {
       }
 
       setIsAddModalOpen(false);
+      invalidateClientCache('products');
       showToast(`Produk "${formData.name}" berhasil ditambahkan`);
       fetchProducts();
       fetchCategories();
@@ -323,6 +314,7 @@ export default function ProdukPage() {
       }
 
       setIsEditModalOpen(false);
+      invalidateClientCache('products');
       showToast(`Produk "${formData.name}" berhasil diperbarui`);
       fetchProducts();
       fetchCategories();
@@ -349,6 +341,7 @@ export default function ProdukPage() {
 
       if (res.ok) {
         setIsDeleteModalOpen(false);
+        invalidateClientCache('products');
         showToast(`Produk "${selectedProduct.name}" berhasil dihapus`);
         fetchProducts();
         fetchCategories();
@@ -443,13 +436,45 @@ export default function ProdukPage() {
             </select>
           </div>
 
-          <label
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', color: '#334155', cursor: 'pointer', userSelect: 'none' }}
-            title="Barang yang didaftarkan lewat bot dan belum dilengkapi kategori/minimumnya"
+          {/* Filter Perlu Dilengkapi sebagai Modern Filter Button */}
+          <button
+            type="button"
+            onClick={() => toggleNeedsReview(!onlyNeedsReview)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              height: '38px',
+              padding: '0 14px',
+              borderRadius: 'var(--radius-md)',
+              fontSize: '13px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all var(--transition-fast)',
+              background: onlyNeedsReview ? '#FEF2F2' : '#FFFFFF',
+              color: onlyNeedsReview ? '#DC2626' : '#475569',
+              border: `1.5px solid ${onlyNeedsReview ? '#FCA5A5' : '#E2E8F0'}`,
+              boxShadow: onlyNeedsReview ? '0 1px 3px rgba(220, 38, 38, 0.12)' : 'var(--shadow-xs)'
+            }}
+            title="Filter barang yang didaftarkan lewat bot dan belum dilengkapi"
           >
-            <input type="checkbox" checked={onlyNeedsReview} onChange={(e) => toggleNeedsReview(e.target.checked)} />
-            Perlu dilengkapi{needsReviewCount > 0 ? ` (${needsReviewCount})` : ''}
-          </label>
+            <AlertCircle size={15} style={{ color: onlyNeedsReview ? '#DC2626' : '#94A3B8' }} />
+            <span>Perlu Dilengkapi</span>
+            {needsReviewCount > 0 && (
+              <span
+                style={{
+                  padding: '1px 7px',
+                  borderRadius: 'var(--radius-full)',
+                  fontSize: '11.5px',
+                  fontWeight: 700,
+                  background: onlyNeedsReview ? '#DC2626' : '#F1F5F9',
+                  color: onlyNeedsReview ? '#FFFFFF' : '#475569'
+                }}
+              >
+                {needsReviewCount}
+              </span>
+            )}
+          </button>
         </div>
 
         {/* Action Buttons */}
@@ -668,6 +693,7 @@ export default function ProdukPage() {
               placeholder="Contoh: Indomie Goreng"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              style={{ height: '42px', fontSize: '14px', borderRadius: '8px' }}
               required
             />
           </div>
@@ -683,6 +709,7 @@ export default function ProdukPage() {
                 className="form-input"
                 value={formData.stock_current}
                 onChange={(e) => setFormData({ ...formData, stock_current: parseInt(e.target.value, 10) || 0 })}
+                style={{ height: '42px', fontSize: '14px', borderRadius: '8px' }}
               />
             </div>
           </div>
@@ -695,6 +722,7 @@ export default function ProdukPage() {
               className="form-input"
               value={formData.stock_minimum}
               onChange={(e) => setFormData({ ...formData, stock_minimum: parseInt(e.target.value, 10) || 0 })}
+              style={{ height: '42px', fontSize: '14px', borderRadius: '8px' }}
               required
             />
           </div>
@@ -713,6 +741,7 @@ export default function ProdukPage() {
               type="button"
               className="btn btn-secondary"
               onClick={() => setIsAddModalOpen(false)}
+              style={{ height: '42px', padding: '0 18px', fontSize: '14px' }}
             >
               Batal
             </button>
@@ -720,6 +749,7 @@ export default function ProdukPage() {
               type="submit"
               className="btn btn-primary"
               disabled={isSaving}
+              style={{ height: '42px', padding: '0 20px', fontSize: '14px' }}
             >
               {isSaving ? 'Menyimpan...' : 'Simpan Produk'}
             </button>
@@ -783,7 +813,7 @@ export default function ProdukPage() {
                 disabled
                 readOnly
                 title="Stok hanya berubah lewat transaksi atau stok opname"
-                style={{ background: '#F1F5F9', color: '#64748B', cursor: 'not-allowed' }}
+                style={{ height: '42px', fontSize: '14px', borderRadius: '8px', background: '#F1F5F9', color: '#64748B', cursor: 'not-allowed' }}
               />
               <p style={{ fontSize: '12px', color: '#64748B', margin: '4px 0 0' }}>
                 Stok diubah lewat Riwayat &rarr; Catat Manual atau stok opname di Telegram.
@@ -799,6 +829,7 @@ export default function ProdukPage() {
               className="form-input"
               value={formData.stock_minimum}
               onChange={(e) => setFormData({ ...formData, stock_minimum: parseInt(e.target.value, 10) || 0 })}
+              style={{ height: '42px', fontSize: '14px', borderRadius: '8px' }}
               required
             />
           </div>
@@ -817,6 +848,7 @@ export default function ProdukPage() {
               type="button"
               className="btn btn-secondary"
               onClick={() => setIsEditModalOpen(false)}
+              style={{ height: '42px', padding: '0 18px', fontSize: '14px' }}
             >
               Batal
             </button>
@@ -824,6 +856,7 @@ export default function ProdukPage() {
               type="submit"
               className="btn btn-primary"
               disabled={isSaving}
+              style={{ height: '42px', padding: '0 20px', fontSize: '14px' }}
             >
               {isSaving ? 'Menyimpan...' : 'Simpan Perubahan'}
             </button>
