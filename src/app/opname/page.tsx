@@ -234,3 +234,55 @@ export default function OpnamePage() {
         </div>
       </div>
 
+      <div className="table-container">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th style={{ width: '24%' }}>Tanggal</th>
+              <th style={{ width: '20%' }}>Pengguna</th>
+              <th style={{ width: '16%', textAlign: 'right' }}>Jumlah produk</th>
+              <th>Catatan</th>
+              <th style={{ width: '90px', textAlign: 'center' }}>Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            {isLoading ? (
+              <tr>
+                <td colSpan={5} style={{ textAlign: 'center', padding: '36px', color: '#94A3B8' }}>Memuat riwayat opname...</td>
+              </tr>
+            ) : loadError ? (
+              <tr>
+                <td colSpan={5} style={{ textAlign: 'center', padding: '36px', color: '#DC2626' }}>
+                  <AlertCircle size={22} style={{ margin: '0 auto 6px', display: 'block' }} />
+                  {loadError}
+                </td>
+              </tr>
+            ) : sessions.length === 0 ? (
+              <tr>
+                <td colSpan={5} style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>
+                  <ClipboardCheck size={32} style={{ color: '#94A3B8', margin: '0 auto 8px', display: 'block' }} />
+                  Belum ada stok opname yang sesuai filter.
+                </td>
+              </tr>
+            ) : (
+              sessions.map((s) => (
+                <tr key={s.id}>
+                  <td style={{ color: '#0F172A', fontSize: '13px', fontWeight: 600 }}>{formatDateTime(s.created_at)}</td>
+                  <td style={{ color: '#475569', fontSize: '13px' }}>{s.username ?? '-'}</td>
+                  <td style={{ textAlign: 'right', fontSize: '13.5px', color: '#0F172A' }}>{s.item_count}</td>
+                  <td style={{ color: '#475569', fontSize: '13px' }}>{s.note || <span style={{ color: '#94A3B8' }}>-</span>}</td>
+                  <td style={{ textAlign: 'center' }}>
+                    <button onClick={() => openDetail(s.id)} className="btn btn-secondary btn-sm" title="Lihat detail">
+                      <Eye size={13} />
+                      <span>Detail</span>
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      </>)}
+
