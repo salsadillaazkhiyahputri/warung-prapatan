@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
@@ -96,9 +96,9 @@ export default function RiwayatPage() {
     }
   };
 
-  const fetchTransactions = async () => {
+  const fetchTransactions = useCallback(async (silent = false) => {
     const isDefault = !startDate && !endDate && selectedProductId === 'all' && selectedKind === 'all';
-    if (transactions.length === 0) setIsLoading(true);
+    if (!silent && transactions.length === 0) setIsLoading(true);
     try {
       const params = new URLSearchParams();
       if (startDate) params.append('startDate', startDate);
@@ -117,9 +117,9 @@ export default function RiwayatPage() {
     } catch (err) {
       console.error('Error fetching transactions:', err);
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
-  };
+  }, [startDate, endDate, selectedProductId, selectedKind, transactions.length]);
 
   useEffect(() => {
     fetchProducts();
@@ -127,8 +127,23 @@ export default function RiwayatPage() {
   }, []);
 
   useEffect(() => {
-    fetchTransactions();
-  }, [startDate, endDate, selectedProductId, selectedKind]);
+    fetchTransactions(true);
+
+    // Auto-refresh setiap 25 detik & saat tab browser kembali aktif
+    const interval = setInterval(() => {
+      fetchTransactions(true);
+    }, 25000);
+    const handleFocus = () => {
+      fetchTransactions(true);
+      fetchProducts();
+      fetchSuppliers();
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [fetchTransactions]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -337,13 +352,6 @@ export default function RiwayatPage() {
           >
             Total <strong style={{ color: '#0F172A' }}>{transactions.length}</strong> Catatan
           </div>
-          <button
-            onClick={fetchTransactions}
-            className="btn btn-secondary btn-sm"
-            title="Segarkan Riwayat"
-          >
-            <RefreshCw size={14} className={isLoading ? 'pulse' : ''} />
-          </button>
         </div>
 
         <div style={{ display: 'flex', gap: '8px' }}>
