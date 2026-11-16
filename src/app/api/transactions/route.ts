@@ -10,6 +10,7 @@ export async function GET(req: NextRequest) {
     const endDate = searchParams.get('endDate') || undefined;
     const prodIdParam = searchParams.get('productId');
     const typeParam = searchParams.get('type') as TransactionType | 'all' | null;
+    const q = searchParams.get('q') || undefined;
 
     const productId = prodIdParam && prodIdParam !== 'all' ? parseInt(prodIdParam, 10) : undefined;
     const type = typeParam && typeParam !== 'all' ? typeParam : 'all';
@@ -18,7 +19,8 @@ export async function GET(req: NextRequest) {
       startDate,
       endDate,
       productId: isNaN(productId as number) ? undefined : productId,
-      type
+      type,
+      q
     });
 
     return NextResponse.json(transactions);
