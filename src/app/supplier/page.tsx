@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Supplier, SupplierJenis, SUPPLIER_JENIS, MasukPerJenisRow } from '@/types';
 import { formatDateOnly } from '@/lib/export-utils';
 import { SUPPLIER_JENIS_LABEL } from '@/lib/stock-labels';
+import { getClientCache, setClientCache, invalidateClientCache } from '@/lib/client-cache';
 import {
   Edit2,
   Lock,
@@ -17,12 +18,20 @@ import {
   RefreshCw,
   Building2,
   Power,
-  Trash2
+  Trash2,
+  Eye,
+  EyeOff,
+  Truck,
+  Layers
 } from 'lucide-react';
 
 export default function SupplierPage() {
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [suppliers, setSuppliers] = useState<Supplier[]>(() => {
+    return getClientCache<Supplier[]>('suppliers:all') || [];
+  });
+  const [isLoading, setIsLoading] = useState(() => {
+    return !getClientCache<Supplier[]>('suppliers:all');
+  });
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
   const [editName, setEditName] = useState('');
@@ -40,12 +49,13 @@ export default function SupplierPage() {
   const [actionError, setActionError] = useState('');
 
   const fetchSuppliers = async () => {
-    setIsLoading(true);
+    if (suppliers.length === 0) setIsLoading(true);
     try {
       const res = await fetch('/api/suppliers');
       if (res.ok) {
         const data = await res.json();
         setSuppliers(data);
+        setClientCache('suppliers:all', data);
       }
     } catch (err) {
       console.error('Error fetching suppliers:', err);
@@ -55,8 +65,12 @@ export default function SupplierPage() {
   };
 
   // Ringkasan barang masuk per jenis supplier, 30 hari terakhir (tanpa koreksi stok).
-  const [masuk, setMasuk] = useState<MasukPerJenisRow[]>([]);
-  const [masukRange, setMasukRange] = useState<{ startDate: string; endDate: string } | null>(null);
+  const [masuk, setMasuk] = useState<MasukPerJenisRow[]>(() => {
+    return getClientCache<MasukPerJenisRow[]>('suppliers:masuk:rows') || [];
+  });
+  const [masukRange, setMasukRange] = useState<{ startDate: string; endDate: string } | null>(() => {
+    return getClientCache<{ startDate: string; endDate: string }>('suppliers:masuk:range') || null;
+  });
   const [masukError, setMasukError] = useState('');
 
   const fetchMasuk = async () => {
@@ -70,6 +84,8 @@ export default function SupplierPage() {
       }
       setMasuk(data.rows);
       setMasukRange(data.range);
+      setClientCache('suppliers:masuk:rows', data.rows);
+      setClientCache('suppliers:masuk:range', data.range);
     } catch {
       setMasukError('Gagal memuat ringkasan barang masuk');
     }
@@ -108,6 +124,7 @@ export default function SupplierPage() {
         return;
       }
       setConfirmAction(null);
+      invalidateClientCache('suppliers');
       showToast(isActive ? `"${supplier.name}" diaktifkan lagi` : `"${supplier.name}" dinonaktifkan`);
       fetchSuppliers();
     } catch {
@@ -130,6 +147,7 @@ export default function SupplierPage() {
         return;
       }
       setConfirmAction(null);
+      invalidateClientCache('suppliers');
       showToast(`"${supplier.name}" dihapus permanen`);
       fetchSuppliers();
     } catch {
@@ -180,6 +198,7 @@ export default function SupplierPage() {
         return;
       }
       setIsAddModalOpen(false);
+      invalidateClientCache('suppliers');
       showToast('Supplier berhasil ditambahkan');
       fetchSuppliers();
     } catch {
@@ -219,6 +238,7 @@ export default function SupplierPage() {
       }
 
       setIsEditModalOpen(false);
+      invalidateClientCache('suppliers');
       showToast('Supplier berhasil diperbarui');
       fetchSuppliers();
     } catch {
@@ -279,14 +299,30 @@ export default function SupplierPage() {
             {inactiveCount > 0 && <span style={{ color: '#64748B', fontWeight: 500 }}> · {inactiveCount} nonaktif</span>}
           </div>
 
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', color: '#334155', cursor: 'pointer', userSelect: 'none' }}>
-            <input
-              type="checkbox"
-              checked={showInactive}
-              onChange={(e) => setShowInactive(e.target.checked)}
-            />
-            Tampilkan yang nonaktif
-          </label>
+          <button
+            type="button"
+            onClick={() => setShowInactive(!showInactive)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              height: '38px',
+              padding: '0 14px',
+              borderRadius: 'var(--radius-md)',
+              fontSize: '13px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all var(--transition-fast)',
+              background: showInactive ? '#0F172A' : '#FFFFFF',
+              color: showInactive ? '#FFFFFF' : '#475569',
+              border: `1.5px solid ${showInactive ? '#0F172A' : '#E2E8F0'}`,
+              boxShadow: 'var(--shadow-xs)'
+            }}
+            title={showInactive ? 'Klik untuk sembunyikan supplier nonaktif' : 'Klik untuk tampilkan supplier nonaktif'}
+          >
+            {showInactive ? <Eye size={15} /> : <EyeOff size={15} style={{ color: '#94A3B8' }} />}
+            <span>{showInactive ? 'Menampilkan Nonaktif' : 'Tampilkan Nonaktif'}</span>
+          </button>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -310,29 +346,30 @@ export default function SupplierPage() {
       </div>
 
       {/* Ringkasan barang masuk per jenis supplier */}
-      <div className="card" style={{ marginBottom: '20px', padding: '18px 22px' }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px', marginBottom: '14px' }}>
+      <div className="card" style={{ marginBottom: '22px', padding: '20px 24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}>
           <div>
-            <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', margin: 0 }}>Barang Masuk per Jenis Supplier</h4>
-            <p style={{ fontSize: '12px', color: '#64748B', margin: '2px 0 0' }}>Akumulasi volume barang masuk selama periode 30 hari terakhir</p>
+            <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', margin: 0 }}>Ringkasan Barang Masuk per Jenis Supplier</h4>
+            <p style={{ fontSize: '13px', color: '#64748B', margin: '3px 0 0' }}>Akumulasi volume barang masuk selama periode 30 hari terakhir</p>
           </div>
-          <span style={{ fontSize: '12px', fontWeight: 500, color: '#64748B', background: '#F1F5F9', padding: '4px 10px', borderRadius: 'var(--radius-full)' }}>
+          <span style={{ fontSize: '12.5px', fontWeight: 600, color: '#475569', background: '#F1F5F9', border: '1px solid #E2E8F0', padding: '5px 12px', borderRadius: 'var(--radius-full)' }}>
             {masukRange ? `${formatDateOnly(masukRange.startDate)} – ${formatDateOnly(masukRange.endDate)}` : '30 hari terakhir'} · tanpa koreksi stok
           </span>
         </div>
         {masukError ? (
-          <p style={{ fontSize: '12.5px', color: '#DC2626', margin: 0 }}>{masukError}</p>
+          <p style={{ fontSize: '13px', color: '#DC2626', margin: 0 }}>{masukError}</p>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
             {SUPPLIER_JENIS.map((j) => {
               const row = masuk.find((x) => x.jenis === j) ?? { jenis: j, total_qty: 0, transaction_count: 0 };
               const maxQty = Math.max(1, ...masuk.map((x) => x.total_qty));
               const pct = (row.total_qty / maxQty) * 100;
-              const barColors: Record<SupplierJenis, string> = {
-                utama: '#2563EB',
-                cadangan: '#059669',
-                grosir: '#7C3AED'
+              const configs: Record<SupplierJenis, { color: string; bg: string; icon: React.ReactNode }> = {
+                utama: { color: '#2563EB', bg: '#EFF6FF', icon: <Truck size={17} style={{ color: '#2563EB' }} /> },
+                cadangan: { color: '#059669', bg: '#ECFDF5', icon: <Layers size={17} style={{ color: '#059669' }} /> },
+                grosir: { color: '#7C3AED', bg: '#F5F3FF', icon: <Building2 size={17} style={{ color: '#7C3AED' }} /> }
               };
+              const cfg = configs[j];
               return (
                 <div
                   key={j}
@@ -340,23 +377,37 @@ export default function SupplierPage() {
                   style={{
                     background: '#FFFFFF',
                     border: '1px solid #E2E8F0',
+                    borderTop: `3px solid ${cfg.color}`,
                     borderRadius: 'var(--radius-lg)',
-                    padding: '14px 16px',
+                    padding: '16px 18px',
                     boxShadow: 'var(--shadow-xs)',
                     display: 'flex',
                     flexDirection: 'column',
-                    justifyContent: 'space-between'
+                    justifyContent: 'space-between',
+                    gap: '12px'
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                    <Badge type={j}>{SUPPLIER_JENIS_LABEL[j]}</Badge>
-                    <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#475569', background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '2px 8px', borderRadius: 'var(--radius-full)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ width: '32px', height: '32px', borderRadius: '8px', background: cfg.bg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {cfg.icon}
+                      </span>
+                      <Badge type={j}>{SUPPLIER_JENIS_LABEL[j]}</Badge>
+                    </div>
+                    <span style={{ fontSize: '12px', fontWeight: 600, color: '#475569', background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '3px 9px', borderRadius: 'var(--radius-full)' }}>
                       {row.transaction_count} transaksi
                     </span>
                   </div>
-                  <div style={{ fontSize: '20px', fontWeight: 800, color: '#0F172A', marginBottom: '10px', letterSpacing: '-0.02em' }}>
-                    {row.total_qty.toLocaleString('id-ID')} <span style={{ fontSize: '12.5px', fontWeight: 500, color: '#64748B' }}>pcs</span>
+
+                  <div>
+                    <div style={{ fontSize: '24px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+                      {row.total_qty.toLocaleString('id-ID')} <span style={{ fontSize: '13.5px', fontWeight: 500, color: '#64748B' }}>pcs</span>
+                    </div>
+                    <p style={{ fontSize: '12.5px', color: '#64748B', margin: '4px 0 0' }}>
+                      {row.total_qty > 0 ? `${pct.toFixed(0)}% dari volume masuk tertinggi` : 'Belum ada transaksi masuk'}
+                    </p>
                   </div>
+
                   <div>
                     <div style={{ height: '6px', background: '#F1F5F9', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
                       <div
@@ -364,7 +415,7 @@ export default function SupplierPage() {
                           width: `${pct}%`,
                           minWidth: row.total_qty > 0 ? '6px' : 0,
                           height: '100%',
-                          background: barColors[j],
+                          background: cfg.color,
                           borderRadius: 'var(--radius-full)',
                           transition: 'width 0.3s ease'
                         }}
@@ -411,12 +462,12 @@ export default function SupplierPage() {
               visibleSuppliers.map((item) => (
                 <tr key={item.id} style={item.is_active ? undefined : { opacity: 0.55, background: '#F8FAFC' }}>
                   <td>
-                    <div style={{ fontWeight: 600, color: '#0F172A', fontSize: '13.5px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <div style={{ fontWeight: 600, color: '#0F172A', fontSize: '14.5px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                       {item.name}
                       {!item.is_active && <Badge type="neutral">Nonaktif</Badge>}
                     </div>
                     {item.is_adjustment && (
-                      <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>Supplier sistem untuk penyesuaian stok</div>
+                      <div style={{ fontSize: '13px', color: '#64748B', marginTop: '2px' }}>Supplier sistem untuk penyesuaian stok</div>
                     )}
                   </td>
                   <td>
@@ -426,10 +477,10 @@ export default function SupplierPage() {
                       <Badge type="neutral">Sistem</Badge>
                     )}
                   </td>
-                  <td style={{ color: '#334155', fontSize: '13.5px' }}>
+                  <td style={{ color: '#0F172A', fontWeight: 600, fontSize: '14px' }}>
                     {item.transaction_count ?? 0}
                   </td>
-                  <td style={{ color: '#475569', fontSize: '13.5px' }}>
+                  <td style={{ color: '#475569', fontSize: '14px' }}>
                     {item.last_restock_date ? formatDateOnly(item.last_restock_date) : '-'}
                   </td>
                   <td style={{ textAlign: 'center' }}>
@@ -439,25 +490,28 @@ export default function SupplierPage() {
                         style={{
                           display: 'inline-flex',
                           alignItems: 'center',
-                          justifyContent: 'center',
-                          width: '32px',
-                          height: '32px',
-                          borderRadius: 'var(--radius-sm)',
+                          gap: '6px',
+                          padding: '6px 12px',
+                          borderRadius: 'var(--radius-full)',
                           background: '#F1F5F9',
-                          color: '#94A3B8'
+                          border: '1px solid #E2E8F0',
+                          fontSize: '12px',
+                          color: '#64748B',
+                          fontWeight: 600
                         }}
                       >
-                        <Lock size={14} />
+                        <Lock size={12} />
+                        <span>Sistem</span>
                       </span>
                     ) : (
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                         <button
                           onClick={() => openEditModal(item)}
                           className="sup-icon-btn action-btn-edit"
                           title="Ubah Nama atau Jenis Supplier"
                           disabled={busyId !== null}
                         >
-                          <Edit2 size={13} />
+                          <Edit2 size={15} />
                         </button>
                         {item.is_active ? (
                           <button
@@ -466,7 +520,7 @@ export default function SupplierPage() {
                             disabled={busyId !== null}
                             title="Nonaktifkan supplier (bot & form tidak akan menawarkannya)"
                           >
-                            <Power size={13} />
+                            <Power size={15} />
                           </button>
                         ) : (
                           <button
@@ -475,7 +529,7 @@ export default function SupplierPage() {
                             disabled={busyId !== null}
                             title="Aktifkan kembali supplier"
                           >
-                            <Power size={13} />
+                            <Power size={15} />
                           </button>
                         )}
                         {(item.transaction_count ?? 0) === 0 && (
@@ -485,7 +539,7 @@ export default function SupplierPage() {
                             disabled={busyId !== null}
                             title="Hapus permanen (hanya untuk supplier tanpa riwayat)"
                           >
-                            <Trash2 size={13} />
+                            <Trash2 size={15} />
                           </button>
                         )}
                       </div>
@@ -660,10 +714,10 @@ export default function SupplierPage() {
 
       <style jsx global>{`
         .sup-icon-btn {
-          width: 32px;
-          height: 32px;
+          width: 36px;
+          height: 36px;
           padding: 0;
-          border-radius: var(--radius-sm);
+          border-radius: var(--radius-md);
           display: inline-flex;
           align-items: center;
           justify-content: center;
