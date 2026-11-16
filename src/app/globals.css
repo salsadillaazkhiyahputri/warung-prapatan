@@ -281,7 +281,7 @@ input, select, textarea {
 }
 
 .form-label {
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--text-primary);
   letter-spacing: 0.01em;
@@ -289,7 +289,7 @@ input, select, textarea {
 
 .form-input, .form-select, .form-textarea {
   width: 100%;
-  padding: 9px 13px;
+  padding: 10px 14px;
   background: #FFFFFF;
   border: 1px solid var(--border-input);
   border-radius: var(--radius-md);
@@ -312,7 +312,42 @@ input, select, textarea {
 .form-select option {
   background: #FFFFFF;
   color: var(--text-primary);
-  padding: 6px;
+  padding: 8px;
+}
+
+/* Filter Chip Toggle */
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 14px;
+  border-radius: var(--radius-md);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  background: #FFFFFF;
+  color: var(--text-secondary);
+  border: 1.5px solid var(--border-light);
+  box-shadow: var(--shadow-xs);
+  user-select: none;
+}
+.filter-chip:hover {
+  background: #F8FAFC;
+  border-color: #CBD5E1;
+  color: var(--navy-900);
+}
+.filter-chip.active {
+  background: var(--navy-900);
+  color: #FFFFFF;
+  border-color: var(--navy-900);
+}
+.filter-chip.active-warning {
+  background: #FEF2F2;
+  color: #DC2626;
+  border-color: #FCA5A5;
+  box-shadow: 0 1px 3px rgba(220, 38, 38, 0.12);
 }
 
 /* Card Component */
@@ -341,7 +376,7 @@ input, select, textarea {
 
 .data-table th {
   background: #F8FAFC;
-  padding: 13px 20px;
+  padding: 14px 20px;
   font-size: 12.5px;
   font-weight: 600;
   color: var(--text-secondary);
@@ -352,7 +387,7 @@ input, select, textarea {
 }
 
 .data-table td {
-  padding: 14px 20px;
+  padding: 15px 20px;
   font-size: 14px;
   color: var(--text-primary);
   border-bottom: 1px solid #F1F5F9;
