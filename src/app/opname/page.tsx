@@ -76,12 +76,12 @@ export default function OpnamePage() {
     } catch {
       setLoadError('Terjadi kesalahan pada server');
     } finally {
-      if (!silent) setIsLoading(false);
+      setIsLoading(false);
     }
-  }, [startDate, endDate, productId, sessions.length]);
+  }, [startDate, endDate, productId]);
 
   const fetchKeluar = useCallback(async (silent = false) => {
-    if (!silent) setIsKeluarLoading(true);
+    if (!silent && keluarRows.length === 0) setIsKeluarLoading(true);
     setKeluarError('');
     try {
       const params = new URLSearchParams();
@@ -100,9 +100,9 @@ export default function OpnamePage() {
     } catch {
       setKeluarError('Terjadi kesalahan pada server');
     } finally {
-      if (!silent) setIsKeluarLoading(false);
+      setIsKeluarLoading(false);
     }
-  }, [kStart, kEnd, kCategory]);
+  }, [kStart, kEnd, kCategory, keluarRows.length]);
 
   useEffect(() => {
     fetch('/api/products')
@@ -429,7 +429,7 @@ export default function OpnamePage() {
                 </tr>
               </thead>
               <tbody>
-                {isLoading ? (
+                {isLoading && sessions.length === 0 ? (
                   <tr>
                     <td colSpan={5} style={{ textAlign: 'center', padding: '36px', color: '#94A3B8' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
