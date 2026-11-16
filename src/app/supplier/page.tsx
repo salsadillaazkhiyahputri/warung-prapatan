@@ -261,8 +261,8 @@ export default function SupplierPage() {
       )}
 
       {/* Header Counter & Refresh */}
-      <div className="page-header-box" style={{ marginBottom: '18px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <div className="page-header-box" style={{ marginBottom: '18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
           <div
             style={{
               padding: '6px 14px',
@@ -287,7 +287,9 @@ export default function SupplierPage() {
             />
             Tampilkan yang nonaktif
           </label>
+        </div>
 
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
             onClick={refreshAll}
             className="btn btn-secondary btn-sm"
@@ -308,35 +310,66 @@ export default function SupplierPage() {
       </div>
 
       {/* Ringkasan barang masuk per jenis supplier */}
-      <div className="card" style={{ marginBottom: '18px', padding: '16px 20px' }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px', marginBottom: '12px' }}>
-          <h4 style={{ fontSize: '13.5px', fontWeight: 700, color: '#0F172A', margin: 0 }}>Barang masuk per jenis supplier</h4>
-          <span style={{ fontSize: '12px', color: '#64748B' }}>
+      <div className="card" style={{ marginBottom: '20px', padding: '18px 22px' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px', marginBottom: '14px' }}>
+          <div>
+            <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', margin: 0 }}>Barang Masuk per Jenis Supplier</h4>
+            <p style={{ fontSize: '12px', color: '#64748B', margin: '2px 0 0' }}>Akumulasi volume barang masuk selama periode 30 hari terakhir</p>
+          </div>
+          <span style={{ fontSize: '12px', fontWeight: 500, color: '#64748B', background: '#F1F5F9', padding: '4px 10px', borderRadius: 'var(--radius-full)' }}>
             {masukRange ? `${formatDateOnly(masukRange.startDate)} – ${formatDateOnly(masukRange.endDate)}` : '30 hari terakhir'} · tanpa koreksi stok
           </span>
         </div>
         {masukError ? (
           <p style={{ fontSize: '12.5px', color: '#DC2626', margin: 0 }}>{masukError}</p>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
             {SUPPLIER_JENIS.map((j) => {
               const row = masuk.find((x) => x.jenis === j) ?? { jenis: j, total_qty: 0, transaction_count: 0 };
-              const pct = (row.total_qty / Math.max(1, ...masuk.map((x) => x.total_qty))) * 100;
+              const maxQty = Math.max(1, ...masuk.map((x) => x.total_qty));
+              const pct = (row.total_qty / maxQty) * 100;
+              const barColors: Record<SupplierJenis, string> = {
+                utama: '#2563EB',
+                cadangan: '#059669',
+                grosir: '#7C3AED'
+              };
               return (
                 <div
                   key={j}
                   title={`${SUPPLIER_JENIS_LABEL[j]}: ${row.total_qty.toLocaleString('id-ID')} pcs dari ${row.transaction_count} transaksi`}
-                  style={{ border: '1px solid #E2E8F0', borderRadius: 'var(--radius-md)', padding: '10px 12px' }}
+                  style={{
+                    background: '#FFFFFF',
+                    border: '1px solid #E2E8F0',
+                    borderRadius: 'var(--radius-lg)',
+                    padding: '14px 16px',
+                    boxShadow: 'var(--shadow-xs)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between'
+                  }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
                     <Badge type={j}>{SUPPLIER_JENIS_LABEL[j]}</Badge>
-                    <span style={{ fontSize: '11.5px', color: '#64748B' }}>{row.transaction_count} trx</span>
+                    <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#475569', background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '2px 8px', borderRadius: 'var(--radius-full)' }}>
+                      {row.transaction_count} transaksi
+                    </span>
                   </div>
-                  <div style={{ fontSize: '17px', fontWeight: 700, color: '#0F172A', marginBottom: '6px' }}>
-                    {row.total_qty.toLocaleString('id-ID')} <span style={{ fontSize: '12px', fontWeight: 500, color: '#64748B' }}>pcs</span>
+                  <div style={{ fontSize: '20px', fontWeight: 800, color: '#0F172A', marginBottom: '10px', letterSpacing: '-0.02em' }}>
+                    {row.total_qty.toLocaleString('id-ID')} <span style={{ fontSize: '12.5px', fontWeight: 500, color: '#64748B' }}>pcs</span>
                   </div>
-                  <div style={{ height: '6px', background: '#F1F5F9', borderRadius: '4px', overflow: 'hidden' }}>
-                    <div style={{ width: `${pct}%`, minWidth: row.total_qty > 0 ? '4px' : 0, height: '100%', background: '#334155', borderRadius: '0 4px 4px 0' }} />
+                  <div>
+                    <div style={{ height: '6px', background: '#F1F5F9', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
+                      <div
+                        style={{
+                          width: `${pct}%`,
+                          minWidth: row.total_qty > 0 ? '6px' : 0,
+                          height: '100%',
+                          background: barColors[j],
+                          borderRadius: 'var(--radius-full)',
+                          transition: 'width 0.3s ease'
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
               );
@@ -350,11 +383,11 @@ export default function SupplierPage() {
         <table className="data-table">
           <thead>
             <tr>
-              <th style={{ width: '30%' }}>Nama supplier</th>
-              <th style={{ width: '14%' }}>Jenis</th>
-              <th style={{ width: '14%' }}>Kali barang masuk</th>
-              <th style={{ width: '16%' }}>Terakhir masuk</th>
-              <th style={{ width: '26%', textAlign: 'center' }}>Aksi</th>
+              <th style={{ width: '32%' }}>Nama supplier</th>
+              <th style={{ width: '15%' }}>Jenis</th>
+              <th style={{ width: '18%' }}>Kali barang masuk</th>
+              <th style={{ width: '18%' }}>Terakhir masuk</th>
+              <th style={{ width: '17%', textAlign: 'center' }}>Aksi</th>
             </tr>
           </thead>
           <tbody>
@@ -401,15 +434,27 @@ export default function SupplierPage() {
                   </td>
                   <td style={{ textAlign: 'center' }}>
                     {item.is_adjustment ? (
-                      <span title="Supplier sistem tidak bisa diubah, dinonaktifkan, atau dihapus" style={{ color: '#94A3B8', display: 'inline-flex' }}>
-                        <Lock size={13} />
+                      <span
+                        title="Supplier sistem tidak bisa diubah, dinonaktifkan, atau dihapus"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: 'var(--radius-sm)',
+                          background: '#F1F5F9',
+                          color: '#94A3B8'
+                        }}
+                      >
+                        <Lock size={14} />
                       </span>
                     ) : (
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
                         <button
                           onClick={() => openEditModal(item)}
                           className="sup-icon-btn action-btn-edit"
-                          title="Ubah Supplier"
+                          title="Ubah Nama atau Jenis Supplier"
                           disabled={busyId !== null}
                         >
                           <Edit2 size={13} />
@@ -417,22 +462,20 @@ export default function SupplierPage() {
                         {item.is_active ? (
                           <button
                             onClick={() => openConfirm('deactivate', item)}
-                            className="btn btn-secondary btn-sm"
+                            className="sup-icon-btn action-btn-power"
                             disabled={busyId !== null}
-                            title="Bot dan form stok masuk tidak akan menawarkan supplier ini"
+                            title="Nonaktifkan supplier (bot & form tidak akan menawarkannya)"
                           >
                             <Power size={13} />
-                            <span>Nonaktifkan</span>
                           </button>
                         ) : (
                           <button
                             onClick={() => setActive(item, true)}
-                            className="btn btn-secondary btn-sm"
+                            className="sup-icon-btn action-btn-activate"
                             disabled={busyId !== null}
-                            style={{ opacity: 1 }}
+                            title="Aktifkan kembali supplier"
                           >
                             <Power size={13} />
-                            <span>{busyId === item.id ? 'Memproses...' : 'Aktifkan'}</span>
                           </button>
                         )}
                         {(item.transaction_count ?? 0) === 0 && (
@@ -440,7 +483,7 @@ export default function SupplierPage() {
                             onClick={() => openConfirm('delete', item)}
                             className="sup-icon-btn action-btn-delete"
                             disabled={busyId !== null}
-                            title="Hapus permanen (hanya untuk supplier yang belum pernah dipakai)"
+                            title="Hapus permanen (hanya untuk supplier tanpa riwayat)"
                           >
                             <Trash2 size={13} />
                           </button>
@@ -617,18 +660,25 @@ export default function SupplierPage() {
 
       <style jsx global>{`
         .sup-icon-btn {
-          padding: 6px;
+          width: 32px;
+          height: 32px;
+          padding: 0;
           border-radius: var(--radius-sm);
           display: inline-flex;
           align-items: center;
           justify-content: center;
           transition: all var(--transition-fast);
+          cursor: pointer;
         }
         .sup-icon-btn.action-btn-edit { color: #334155; background: #F8FAFC; border: 1px solid #E2E8F0; }
-        .sup-icon-btn.action-btn-delete { color: #DC2626; background: #FEF2F2; border: 1px solid #FECACA; }
-        .sup-icon-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .sup-icon-btn.action-btn-edit:not(:disabled):hover { background: #0F172A; color: #FFFFFF; border-color: #0F172A; }
+        .sup-icon-btn.action-btn-power { color: #64748B; background: #F8FAFC; border: 1px solid #E2E8F0; }
+        .sup-icon-btn.action-btn-power:not(:disabled):hover { background: #FEF2F2; color: #DC2626; border-color: #FECACA; }
+        .sup-icon-btn.action-btn-activate { color: #059669; background: #ECFDF5; border: 1px solid #A7F3D0; }
+        .sup-icon-btn.action-btn-activate:not(:disabled):hover { background: #059669; color: #FFFFFF; border-color: #059669; }
+        .sup-icon-btn.action-btn-delete { color: #DC2626; background: #FEF2F2; border: 1px solid #FECACA; }
         .sup-icon-btn.action-btn-delete:not(:disabled):hover { background: #DC2626; color: #FFFFFF; border-color: #DC2626; }
+        .sup-icon-btn:disabled { opacity: 0.5; cursor: not-allowed; }
       `}</style>
     </DashboardLayout>
   );
