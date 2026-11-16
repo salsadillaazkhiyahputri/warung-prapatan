@@ -7,6 +7,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Transaction, Product, Supplier, TransactionType, TransactionKind, SUPPLIER_JENIS } from '@/types';
 import { formatDateTime } from '@/lib/export-utils';
 import { SUPPLIER_JENIS_LABEL, TRANSACTION_KIND_LABEL, TRANSACTION_KINDS } from '@/lib/stock-labels';
+import { getClientCache, setClientCache, invalidateClientCache } from '@/lib/client-cache';
 import {
   Download,
   Calendar,
@@ -22,9 +23,18 @@ import {
 } from 'lucide-react';
 
 export default function RiwayatPage() {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [transactions, setTransactions] = useState<Transaction[]>(() => {
+    return getClientCache<Transaction[]>('transactions:history') || [];
+  });
+  const [products, setProducts] = useState<Product[]>(() => {
+    return getClientCache<Product[]>('products:all') || [];
+  });
+  const [allSuppliers, setAllSuppliers] = useState<Supplier[]>(() => {
+    return getClientCache<Supplier[]>('suppliers:all') || [];
+  });
+  const [isLoading, setIsLoading] = useState(() => {
+    return !getClientCache<Transaction[]>('transactions:history');
+  });
 
   // Filters state
   const [startDate, setStartDate] = useState('');
@@ -50,14 +60,17 @@ export default function RiwayatPage() {
     note: ''
   });
   const [manualError, setManualError] = useState('');
-  const [allSuppliers, setAllSuppliers] = useState<Supplier[]>([]);
   // Peringatan lunak: produk + supplier yang belum pernah dipakai bersama.
   const [pairConfirm, setPairConfirm] = useState<{ productName: string; supplierName: string } | null>(null);
 
   const fetchSuppliers = async () => {
     try {
       const res = await fetch('/api/suppliers');
-      if (res.ok) setAllSuppliers(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setClientCache('suppliers:all', data);
+        setAllSuppliers(data);
+      }
     } catch (err) {
       console.error('Error fetching suppliers:', err);
     }
@@ -75,6 +88,7 @@ export default function RiwayatPage() {
       const res = await fetch('/api/products');
       if (res.ok) {
         const data = await res.json();
+        setClientCache('products:all', data);
         setProducts(data);
       }
     } catch (err) {
@@ -83,7 +97,8 @@ export default function RiwayatPage() {
   };
 
   const fetchTransactions = async () => {
-    setIsLoading(true);
+    const isDefault = !startDate && !endDate && selectedProductId === 'all' && selectedKind === 'all';
+    if (transactions.length === 0) setIsLoading(true);
     try {
       const params = new URLSearchParams();
       if (startDate) params.append('startDate', startDate);
@@ -95,6 +110,9 @@ export default function RiwayatPage() {
       if (res.ok) {
         const data = await res.json();
         setTransactions(data);
+        if (isDefault) {
+          setClientCache('transactions:history', data);
+        }
       }
     } catch (err) {
       console.error('Error fetching transactions:', err);
@@ -198,6 +216,9 @@ export default function RiwayatPage() {
       }
 
       setIsManualModalOpen(false);
+      invalidateClientCache('transactions');
+      invalidateClientCache('products');
+      invalidateClientCache('suppliers');
       showToast('Transaksi manual berhasil dicatat');
       fetchTransactions();
       fetchProducts();
@@ -393,8 +414,8 @@ export default function RiwayatPage() {
         >
           {/* Dari Tanggal (DD/MM/YYYY) */}
           <div>
-            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
-              <Calendar size={13} style={{ color: '#64748B' }} />
+            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13.5px', fontWeight: 600, color: '#1E293B', marginBottom: '8px' }}>
+              <Calendar size={14} style={{ color: '#64748B' }} />
               <span>Dari Tanggal</span>
             </label>
             <div style={{ position: 'relative' }}>
@@ -407,7 +428,7 @@ export default function RiwayatPage() {
                   return `${d}/${m}/${y}`;
                 })() : ''}
                 className="form-input"
-                style={{ paddingRight: '38px', cursor: 'pointer', background: '#FFFFFF', height: '38px', fontSize: '13px' }}
+                style={{ paddingRight: '38px', cursor: 'pointer', background: '#FFFFFF', height: '42px', fontSize: '14px', borderRadius: '8px' }}
                 onClick={(e) => {
                   const dateInput = e.currentTarget.nextElementSibling as HTMLInputElement;
                   if (dateInput) {
@@ -432,7 +453,7 @@ export default function RiwayatPage() {
                 }}
               />
               <Calendar
-                size={15}
+                size={16}
                 style={{
                   position: 'absolute',
                   right: '12px',
@@ -447,8 +468,8 @@ export default function RiwayatPage() {
 
           {/* Sampai Tanggal (DD/MM/YYYY) */}
           <div>
-            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
-              <Calendar size={13} style={{ color: '#64748B' }} />
+            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13.5px', fontWeight: 600, color: '#1E293B', marginBottom: '8px' }}>
+              <Calendar size={14} style={{ color: '#64748B' }} />
               <span>Sampai Tanggal</span>
             </label>
             <div style={{ position: 'relative' }}>
@@ -461,7 +482,7 @@ export default function RiwayatPage() {
                   return `${d}/${m}/${y}`;
                 })() : ''}
                 className="form-input"
-                style={{ paddingRight: '38px', cursor: 'pointer', background: '#FFFFFF', height: '38px', fontSize: '13px' }}
+                style={{ paddingRight: '38px', cursor: 'pointer', background: '#FFFFFF', height: '42px', fontSize: '14px', borderRadius: '8px' }}
                 onClick={(e) => {
                   const dateInput = e.currentTarget.nextElementSibling as HTMLInputElement;
                   if (dateInput) {
@@ -486,7 +507,7 @@ export default function RiwayatPage() {
                 }}
               />
               <Calendar
-                size={15}
+                size={16}
                 style={{
                   position: 'absolute',
                   right: '12px',
@@ -501,13 +522,13 @@ export default function RiwayatPage() {
 
           {/* Filter Produk */}
           <div>
-            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
-              <Filter size={13} style={{ color: '#64748B' }} />
+            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13.5px', fontWeight: 600, color: '#1E293B', marginBottom: '8px' }}>
+              <Filter size={14} style={{ color: '#64748B' }} />
               <span>Filter Produk</span>
             </label>
             <select
               className="form-select"
-              style={{ height: '38px', fontSize: '13px' }}
+              style={{ height: '42px', fontSize: '14px', borderRadius: '8px' }}
               value={selectedProductId}
               onChange={(e) => setSelectedProductId(e.target.value)}
             >
@@ -522,13 +543,13 @@ export default function RiwayatPage() {
 
           {/* Jenis Transaksi */}
           <div>
-            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
-              <Filter size={13} style={{ color: '#64748B' }} />
+            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13.5px', fontWeight: 600, color: '#1E293B', marginBottom: '8px' }}>
+              <Filter size={14} style={{ color: '#64748B' }} />
               <span>Jenis Transaksi</span>
             </label>
             <select
               className="form-select"
-              style={{ height: '38px', fontSize: '13px' }}
+              style={{ height: '42px', fontSize: '14px', borderRadius: '8px' }}
               value={selectedKind}
               onChange={(e) => setSelectedKind(e.target.value as 'all' | TransactionKind)}
             >
