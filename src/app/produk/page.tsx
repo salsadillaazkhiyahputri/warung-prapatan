@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Modal } from '@/components/ui/Modal';
-import { Badge } from '@/components/ui/Badge';
 import { Product } from '@/types';
 import {
   Plus,
@@ -16,11 +15,13 @@ import {
   Boxes
 } from 'lucide-react';
 
-const CATEGORIES = ['Semua', 'Mie', 'Sabun', 'Bumbu', 'Minuman', 'Sembako'];
+const BASE_CATEGORIES = ['Semua', 'Sembako', 'Minuman', 'Mie', 'Bumbu', 'Sabun', 'Lainnya'];
 
 export default function ProdukPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Filters state
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Semua');
 
@@ -44,12 +45,12 @@ export default function ProdukPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     setIsLoading(true);
     try {
       let url = '/api/products';
       const params = new URLSearchParams();
-      if (searchQuery) params.append('q', searchQuery);
+      if (searchQuery.trim()) params.append('q', searchQuery.trim());
       if (selectedCategory !== 'Semua') params.append('category', selectedCategory);
       if (params.toString()) url += `?${params.toString()}`;
 
@@ -63,21 +64,33 @@ export default function ProdukPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [searchQuery, selectedCategory]);
 
   useEffect(() => {
-    fetchProducts();
-  }, [selectedCategory]);
+    const timer = setTimeout(() => {
+      fetchProducts();
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [fetchProducts]);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(''), 3000);
+  };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     fetchProducts();
   };
 
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(''), 3000);
-  };
+  // Compute available categories dynamically
+  const availableCategories = useMemo(() => {
+    const set = new Set(BASE_CATEGORIES);
+    products.forEach(p => {
+      if (p.category) set.add(p.category);
+    });
+    return Array.from(set);
+  }, [products]);
 
   // 1. Tambah Produk
   const openAddModal = () => {
@@ -237,7 +250,7 @@ export default function ProdukPage() {
         </div>
       )}
 
-      {/* Toolbar: Search, Category Dropdown & Action Buttons */}
+      {/* Toolbar: Search, Category & Tambah Produk (Sesuai Wireframe Gambar 20) */}
       <div className="page-header-box" style={{ marginBottom: '22px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: '1', maxWidth: '640px', flexWrap: 'wrap' }}>
           <form
@@ -280,16 +293,14 @@ export default function ProdukPage() {
               onChange={(e) => setSelectedCategory(e.target.value)}
             >
               <option value="Semua">Semua Kategori</option>
-              <option value="Sembako">Sembako</option>
-              <option value="Minuman">Minuman</option>
-              <option value="Mie">Mie</option>
-              <option value="Bumbu">Bumbu</option>
-              <option value="Sabun">Sabun</option>
+              {availableCategories.filter(c => c !== 'Semua').map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
             </select>
           </div>
         </div>
 
-        {/* Action Buttons */}
+        {/* Action Buttons: Segarkan & Tambah Produk */}
         <div style={{ display: 'flex', gap: '8px' }}>
           <button
             onClick={fetchProducts}
@@ -307,7 +318,7 @@ export default function ProdukPage() {
         </div>
       </div>
 
-      {/* Tabel Data Produk Sesuai Proposal */}
+      {/* Tabel Data Produk Sesuai Proposal Gambar 20 */}
       <div className="table-container">
         <table className="data-table">
           <thead>
@@ -355,7 +366,7 @@ export default function ProdukPage() {
                       {item.unit}
                     </td>
                     <td style={{ color: '#475569', fontSize: '13px' }}>
-                      {item.qty_per_karton ?? '-'}
+                      {item.qty_per_karton ?? '—'}
                     </td>
                     <td>
                       <span
@@ -416,7 +427,7 @@ export default function ProdukPage() {
         </table>
       </div>
 
-      {/* MODAL 1: Tambah Produk */}
+      {/* MODAL 1: Tambah Produk (Sesuai Activity Diagram Gambar 9) */}
       <Modal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
@@ -554,7 +565,7 @@ export default function ProdukPage() {
         </form>
       </Modal>
 
-      {/* MODAL 2: Edit Produk */}
+      {/* MODAL 2: Edit Produk (Sesuai Activity Diagram Gambar 10) */}
       <Modal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
@@ -689,7 +700,7 @@ export default function ProdukPage() {
         </form>
       </Modal>
 
-      {/* MODAL 3: Konfirmasi Hapus Produk */}
+      {/* MODAL 3: Konfirmasi Hapus Produk (Sesuai Activity Diagram Gambar 11) */}
       <Modal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
