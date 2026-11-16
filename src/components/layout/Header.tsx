@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Menu, Calendar, Sparkles } from 'lucide-react';
+import { Menu, Calendar } from 'lucide-react';
 
 interface HeaderProps {
   onToggleMobileMenu: () => void;
@@ -89,33 +89,7 @@ export const Header: React.FC<HeaderProps> = ({
           className="date-pill"
         >
           <Calendar size={13} style={{ color: '#64748B' }} />
-          <span style={{ minWidth: '150px' }}>{todayFormatted || ' '}</span>
-        </div>
-
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '6px 12px',
-            borderRadius: 'var(--radius-full)',
-            background: '#ECFDF5',
-            border: '1px solid #A7F3D0',
-            fontSize: '12px',
-            fontWeight: 600,
-            color: '#065F46'
-          }}
-        >
-          <span
-            style={{
-              width: '6px',
-              height: '6px',
-              borderRadius: '50%',
-              background: '#10B981',
-              boxShadow: '0 0 6px rgba(16, 185, 129, 0.6)'
-            }}
-          />
-          <span>Aktif</span>
+          <span>{todayFormatted || ' '}</span>
         </div>
       </div>
     </header>
