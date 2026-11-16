@@ -3,16 +3,21 @@
 import React, { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Modal } from '@/components/ui/Modal';
-import { Supplier } from '@/types';
+import { Badge } from '@/components/ui/Badge';
+import { Supplier, SupplierJenis, SUPPLIER_JENIS, MasukPerJenisRow } from '@/types';
 import { formatDateOnly } from '@/lib/export-utils';
+import { SUPPLIER_JENIS_LABEL } from '@/lib/stock-labels';
 import {
-  Truck,
   Edit2,
+  Lock,
+  Plus,
   Info,
   CheckCircle2,
   AlertCircle,
   RefreshCw,
-  Building2
+  Building2,
+  Power,
+  Trash2
 } from 'lucide-react';
 
 export default function SupplierPage() {
@@ -24,6 +29,15 @@ export default function SupplierPage() {
   const [errorMessage, setErrorMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [addName, setAddName] = useState('');
+  const [addJenis, setAddJenis] = useState<SupplierJenis | ''>('');
+  const [editJenis, setEditJenis] = useState<SupplierJenis | ''>('');
+  // Nonaktif/aktif dan hapus permanen.
+  const [showInactive, setShowInactive] = useState(false);
+  const [busyId, setBusyId] = useState<number | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{ kind: 'deactivate' | 'delete'; supplier: Supplier } | null>(null);
+  const [actionError, setActionError] = useState('');
 
   const fetchSuppliers = async () => {
     setIsLoading(true);
@@ -40,8 +54,35 @@ export default function SupplierPage() {
     }
   };
 
+  // Ringkasan barang masuk per jenis supplier, 30 hari terakhir (tanpa koreksi stok).
+  const [masuk, setMasuk] = useState<MasukPerJenisRow[]>([]);
+  const [masukRange, setMasukRange] = useState<{ startDate: string; endDate: string } | null>(null);
+  const [masukError, setMasukError] = useState('');
+
+  const fetchMasuk = async () => {
+    setMasukError('');
+    try {
+      const res = await fetch('/api/suppliers/masuk-per-jenis');
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setMasukError(data?.error || 'Gagal memuat ringkasan barang masuk');
+        return;
+      }
+      setMasuk(data.rows);
+      setMasukRange(data.range);
+    } catch {
+      setMasukError('Gagal memuat ringkasan barang masuk');
+    }
+  };
+
+  const refreshAll = () => {
+    fetchSuppliers();
+    fetchMasuk();
+  };
+
   useEffect(() => {
     fetchSuppliers();
+    fetchMasuk();
   }, []);
 
   const showToast = (msg: string) => {
@@ -49,11 +90,103 @@ export default function SupplierPage() {
     setTimeout(() => setToastMessage(''), 3000);
   };
 
+  // PATCH is_active. Mengaktifkan langsung jalan; menonaktifkan lewat dialog konfirmasi.
+  const setActive = async (supplier: Supplier, isActive: boolean) => {
+    if (busyId !== null) return;
+    setBusyId(supplier.id);
+    setActionError('');
+    try {
+      const res = await fetch(`/api/suppliers/${supplier.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: isActive })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = data.error || 'Gagal mengubah status supplier';
+        if (confirmAction) setActionError(msg); else showToast(msg);
+        return;
+      }
+      setConfirmAction(null);
+      showToast(isActive ? `"${supplier.name}" diaktifkan lagi` : `"${supplier.name}" dinonaktifkan`);
+      fetchSuppliers();
+    } catch {
+      setActionError('Terjadi kesalahan pada server');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const deletePermanent = async (supplier: Supplier) => {
+    if (busyId !== null) return;
+    setBusyId(supplier.id);
+    setActionError('');
+    try {
+      const res = await fetch(`/api/suppliers/${supplier.id}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setActionError(data.error || 'Gagal menghapus supplier');
+        if (res.status === 409 || res.status === 404) fetchSuppliers();
+        return;
+      }
+      setConfirmAction(null);
+      showToast(`"${supplier.name}" dihapus permanen`);
+      fetchSuppliers();
+    } catch {
+      setActionError('Terjadi kesalahan pada server');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const openConfirm = (kind: 'deactivate' | 'delete', supplier: Supplier) => {
+    setActionError('');
+    setConfirmAction({ kind, supplier });
+  };
+
+  const activeCount = suppliers.filter((s) => s.is_active).length;
+  const inactiveCount = suppliers.length - activeCount;
+  const visibleSuppliers = showInactive ? suppliers : suppliers.filter((s) => s.is_active);
+
   const openEditModal = (supplier: Supplier) => {
     setSelectedSupplier(supplier);
     setEditName(supplier.name);
+    setEditJenis(supplier.jenis ?? '');
     setErrorMessage('');
     setIsEditModalOpen(true);
+  };
+
+  const handleAddSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage('');
+    if (!addName.trim()) {
+      setErrorMessage('Nama supplier tidak boleh kosong');
+      return;
+    }
+    if (!addJenis) {
+      setErrorMessage('Jenis supplier wajib dipilih');
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const res = await fetch('/api/suppliers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: addName.trim(), jenis: addJenis })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErrorMessage(data.error || 'Gagal menambahkan supplier');
+        return;
+      }
+      setIsAddModalOpen(false);
+      showToast('Supplier berhasil ditambahkan');
+      fetchSuppliers();
+    } catch {
+      setErrorMessage('Terjadi kesalahan pada server');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleEditSubmit = async (e: React.FormEvent) => {
@@ -65,24 +198,28 @@ export default function SupplierPage() {
       setErrorMessage('Nama supplier tidak boleh kosong');
       return;
     }
+    if (!editJenis) {
+      setErrorMessage('Jenis supplier wajib dipilih');
+      return;
+    }
 
     setIsSaving(true);
     try {
       const res = await fetch(`/api/suppliers/${selectedSupplier.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: editName.trim() })
+        body: JSON.stringify({ name: editName.trim(), jenis: editJenis })
       });
 
       const data = await res.json();
       if (!res.ok) {
-        setErrorMessage(data.error || 'Gagal mengubah nama supplier');
+        setErrorMessage(data.error || 'Gagal mengubah supplier');
         setIsSaving(false);
         return;
       }
 
       setIsEditModalOpen(false);
-      showToast(`Nama supplier berhasil diperbarui`);
+      showToast('Supplier berhasil diperbarui');
       fetchSuppliers();
     } catch {
       setErrorMessage('Terjadi kesalahan pada server');
@@ -94,7 +231,7 @@ export default function SupplierPage() {
   return (
     <DashboardLayout
       title="Supplier"
-      subtitle="Supplier ditambahkan otomatis dari chatbot. Anda dapat mengedit nama jika terdapat kesalahan penulisan."
+      subtitle="Daftarkan supplier beserta jenisnya (utama, cadangan, atau grosir). Ringkasan barang masuk per jenis ada di bawah ini."
     >
       {/* Toast Notification */}
       {toastMessage && (
@@ -113,7 +250,7 @@ export default function SupplierPage() {
             borderRadius: 'var(--radius-md)',
             boxShadow: 'var(--shadow-md)',
             color: '#0F172A',
-            fontSize: '13.5px',
+            fontSize: '13px',
             fontWeight: 600,
             animation: 'fadeIn 0.15s ease'
           }}
@@ -132,24 +269,80 @@ export default function SupplierPage() {
               borderRadius: 'var(--radius-full)',
               background: '#FFFFFF',
               border: '1px solid #E2E8F0',
-              fontSize: '13px',
+              fontSize: '12.5px',
               fontWeight: 600,
               color: '#0F172A',
               boxShadow: 'var(--shadow-xs)'
             }}
           >
-            Total <strong style={{ color: '#0F172A' }}>{suppliers.length}</strong> Supplier Terdaftar
+            <strong style={{ color: '#0F172A' }}>{activeCount}</strong> Supplier Aktif
+            {inactiveCount > 0 && <span style={{ color: '#64748B', fontWeight: 500 }}> · {inactiveCount} nonaktif</span>}
           </div>
 
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', color: '#334155', cursor: 'pointer', userSelect: 'none' }}>
+            <input
+              type="checkbox"
+              checked={showInactive}
+              onChange={(e) => setShowInactive(e.target.checked)}
+            />
+            Tampilkan yang nonaktif
+          </label>
+
           <button
-            onClick={fetchSuppliers}
+            onClick={refreshAll}
             className="btn btn-secondary btn-sm"
             title="Segarkan Data"
           >
             <RefreshCw size={14} className={isLoading ? 'pulse' : ''} />
             <span>Segarkan</span>
           </button>
+
+          <button
+            onClick={() => { setAddName(''); setAddJenis(''); setErrorMessage(''); setIsAddModalOpen(true); }}
+            className="btn btn-primary btn-sm"
+          >
+            <Plus size={14} />
+            <span>Tambah supplier</span>
+          </button>
         </div>
+      </div>
+
+      {/* Ringkasan barang masuk per jenis supplier */}
+      <div className="card" style={{ marginBottom: '18px', padding: '16px 20px' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px', marginBottom: '12px' }}>
+          <h4 style={{ fontSize: '13.5px', fontWeight: 700, color: '#0F172A', margin: 0 }}>Barang masuk per jenis supplier</h4>
+          <span style={{ fontSize: '12px', color: '#64748B' }}>
+            {masukRange ? `${formatDateOnly(masukRange.startDate)} – ${formatDateOnly(masukRange.endDate)}` : '30 hari terakhir'} · tanpa koreksi stok
+          </span>
+        </div>
+        {masukError ? (
+          <p style={{ fontSize: '12.5px', color: '#DC2626', margin: 0 }}>{masukError}</p>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+            {SUPPLIER_JENIS.map((j) => {
+              const row = masuk.find((x) => x.jenis === j) ?? { jenis: j, total_qty: 0, transaction_count: 0 };
+              const pct = (row.total_qty / Math.max(1, ...masuk.map((x) => x.total_qty))) * 100;
+              return (
+                <div
+                  key={j}
+                  title={`${SUPPLIER_JENIS_LABEL[j]}: ${row.total_qty.toLocaleString('id-ID')} pcs dari ${row.transaction_count} transaksi`}
+                  style={{ border: '1px solid #E2E8F0', borderRadius: 'var(--radius-md)', padding: '10px 12px' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <Badge type={j}>{SUPPLIER_JENIS_LABEL[j]}</Badge>
+                    <span style={{ fontSize: '11.5px', color: '#64748B' }}>{row.transaction_count} trx</span>
+                  </div>
+                  <div style={{ fontSize: '17px', fontWeight: 700, color: '#0F172A', marginBottom: '6px' }}>
+                    {row.total_qty.toLocaleString('id-ID')} <span style={{ fontSize: '12px', fontWeight: 500, color: '#64748B' }}>pcs</span>
+                  </div>
+                  <div style={{ height: '6px', background: '#F1F5F9', borderRadius: '4px', overflow: 'hidden' }}>
+                    <div style={{ width: `${pct}%`, minWidth: row.total_qty > 0 ? '4px' : 0, height: '100%', background: '#334155', borderRadius: '0 4px 4px 0' }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Tabel Data Supplier Sesuai Proposal */}
@@ -157,62 +350,103 @@ export default function SupplierPage() {
         <table className="data-table">
           <thead>
             <tr>
-              <th style={{ width: '40%' }}>Nama Supplier</th>
-              <th style={{ width: '25%' }}>Jumlah Transaksi</th>
-              <th style={{ width: '25%' }}>Terakhir Masuk</th>
-              <th style={{ width: '10%', textAlign: 'center' }}>Aksi</th>
+              <th style={{ width: '30%' }}>Nama supplier</th>
+              <th style={{ width: '14%' }}>Jenis</th>
+              <th style={{ width: '14%' }}>Kali barang masuk</th>
+              <th style={{ width: '16%' }}>Terakhir masuk</th>
+              <th style={{ width: '26%', textAlign: 'center' }}>Aksi</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={4} style={{ textAlign: 'center', padding: '36px', color: '#94A3B8' }}>
+                <td colSpan={5} style={{ textAlign: 'center', padding: '36px', color: '#94A3B8' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                     <div style={{ width: '16px', height: '16px', borderRadius: '50%', border: '2px solid #CBD5E1', borderTopColor: '#0F172A', animation: 'spin 0.6s linear infinite' }} />
                     <span>Memuat data supplier...</span>
                   </div>
                 </td>
               </tr>
-            ) : suppliers.length === 0 ? (
+            ) : visibleSuppliers.length === 0 ? (
               <tr>
-                <td colSpan={4} style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>
+                <td colSpan={5} style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>
                   <Building2 size={32} style={{ color: '#94A3B8', margin: '0 auto 8px', display: 'block' }} />
-                  <span>Belum ada supplier yang tercatat.</span>
+                  <span>{suppliers.length === 0 ? 'Belum ada supplier yang tercatat.' : 'Tidak ada supplier aktif. Centang "Tampilkan yang nonaktif" untuk melihat semuanya.'}</span>
                 </td>
               </tr>
             ) : (
-              suppliers.map((item) => (
-                <tr key={item.id}>
+              visibleSuppliers.map((item) => (
+                <tr key={item.id} style={item.is_active ? undefined : { opacity: 0.55, background: '#F8FAFC' }}>
                   <td>
-                    <div style={{ fontWeight: 600, color: '#0F172A', fontSize: '14.5px' }}>
+                    <div style={{ fontWeight: 600, color: '#0F172A', fontSize: '13.5px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                       {item.name}
+                      {!item.is_active && <Badge type="neutral">Nonaktif</Badge>}
                     </div>
+                    {item.is_adjustment && (
+                      <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>Supplier sistem untuk penyesuaian stok</div>
+                    )}
                   </td>
-                  <td style={{ color: '#334155', fontSize: '14px' }}>
+                  <td>
+                    {item.jenis ? (
+                      <Badge type={item.jenis}>{SUPPLIER_JENIS_LABEL[item.jenis]}</Badge>
+                    ) : (
+                      <Badge type="neutral">Sistem</Badge>
+                    )}
+                  </td>
+                  <td style={{ color: '#334155', fontSize: '13.5px' }}>
                     {item.transaction_count ?? 0}
                   </td>
-                  <td style={{ color: '#475569', fontSize: '14px' }}>
+                  <td style={{ color: '#475569', fontSize: '13.5px' }}>
                     {item.last_restock_date ? formatDateOnly(item.last_restock_date) : '-'}
                   </td>
                   <td style={{ textAlign: 'center' }}>
-                    <button
-                      onClick={() => openEditModal(item)}
-                      style={{
-                        padding: '6px',
-                        borderRadius: 'var(--radius-sm)',
-                        color: '#334155',
-                        background: '#F8FAFC',
-                        border: '1px solid #E2E8F0',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'all var(--transition-fast)'
-                      }}
-                      className="action-btn-edit"
-                      title="Ubah Nama Supplier"
-                    >
-                      <Edit2 size={13} />
-                    </button>
+                    {item.is_adjustment ? (
+                      <span title="Supplier sistem tidak bisa diubah, dinonaktifkan, atau dihapus" style={{ color: '#94A3B8', display: 'inline-flex' }}>
+                        <Lock size={13} />
+                      </span>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                        <button
+                          onClick={() => openEditModal(item)}
+                          className="sup-icon-btn action-btn-edit"
+                          title="Ubah Supplier"
+                          disabled={busyId !== null}
+                        >
+                          <Edit2 size={13} />
+                        </button>
+                        {item.is_active ? (
+                          <button
+                            onClick={() => openConfirm('deactivate', item)}
+                            className="btn btn-secondary btn-sm"
+                            disabled={busyId !== null}
+                            title="Bot dan form stok masuk tidak akan menawarkan supplier ini"
+                          >
+                            <Power size={13} />
+                            <span>Nonaktifkan</span>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => setActive(item, true)}
+                            className="btn btn-secondary btn-sm"
+                            disabled={busyId !== null}
+                            style={{ opacity: 1 }}
+                          >
+                            <Power size={13} />
+                            <span>{busyId === item.id ? 'Memproses...' : 'Aktifkan'}</span>
+                          </button>
+                        )}
+                        {(item.transaction_count ?? 0) === 0 && (
+                          <button
+                            onClick={() => openConfirm('delete', item)}
+                            className="sup-icon-btn action-btn-delete"
+                            disabled={busyId !== null}
+                            title="Hapus permanen (hanya untuk supplier yang belum pernah dipakai)"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))
@@ -220,13 +454,50 @@ export default function SupplierPage() {
           </tbody>
         </table>
       </div>
+      <p style={{ fontSize: '12px', color: '#64748B', margin: '8px 2px 0' }}>
+        Angka ini dihitung dari seluruh riwayat stok masuk, termasuk barang yang sudah dihapus dari katalog.
+      </p>
 
-      {/* Modal Edit Nama Supplier */}
+      {/* Modal Tambah Supplier */}
+      <Modal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        title="Tambah Supplier"
+        maxWidth="440px"
+      >
+        <form onSubmit={handleAddSubmit}>
+          {errorMessage && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 'var(--radius-sm)', color: '#DC2626', fontSize: '13px', marginBottom: '16px' }}>
+              <AlertCircle size={16} />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+          <div className="form-group">
+            <label className="form-label">Nama Supplier *</label>
+            <input type="text" className="form-input" value={addName} onChange={(e) => setAddName(e.target.value)} placeholder="Contoh: PT Unilever Indonesia" required />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Jenis Supplier *</label>
+            <select className="form-select" value={addJenis} onChange={(e) => setAddJenis(e.target.value as SupplierJenis | '')} required>
+              <option value="">-- Pilih Jenis --</option>
+              {SUPPLIER_JENIS.map((j) => (
+                <option key={j} value={j}>{SUPPLIER_JENIS_LABEL[j]}</option>
+              ))}
+            </select>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px', paddingTop: '16px', borderTop: '1px solid #E2E8F0' }}>
+            <button type="button" className="btn btn-secondary" onClick={() => setIsAddModalOpen(false)}>Batal</button>
+            <button type="submit" className="btn btn-primary" disabled={isSaving}>{isSaving ? 'Menyimpan...' : 'Simpan'}</button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal Ubah Supplier */}
       <Modal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
-        title="Ubah Nama Supplier"
-        maxWidth="480px"
+        title="Ubah Supplier"
+        maxWidth="440px"
       >
         <form onSubmit={handleEditSubmit}>
           {errorMessage && (
@@ -261,6 +532,16 @@ export default function SupplierPage() {
             />
           </div>
 
+          <div className="form-group">
+            <label className="form-label">Jenis Supplier *</label>
+            <select className="form-select" value={editJenis} onChange={(e) => setEditJenis(e.target.value as SupplierJenis | '')} required>
+              <option value="">-- Pilih Jenis --</option>
+              {SUPPLIER_JENIS.map((j) => (
+                <option key={j} value={j}>{SUPPLIER_JENIS_LABEL[j]}</option>
+              ))}
+            </select>
+          </div>
+
           <div
             style={{
               display: 'flex',
@@ -288,6 +569,67 @@ export default function SupplierPage() {
           </div>
         </form>
       </Modal>
+      {/* Konfirmasi nonaktifkan / hapus permanen */}
+      <Modal
+        isOpen={confirmAction !== null}
+        onClose={() => { if (busyId === null) setConfirmAction(null); }}
+        title={confirmAction?.kind === 'delete' ? 'Hapus Permanen Supplier' : 'Nonaktifkan Supplier'}
+        maxWidth="440px"
+      >
+        {actionError && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 'var(--radius-sm)', color: '#DC2626', fontSize: '13px', marginBottom: '16px' }}>
+            <AlertCircle size={16} />
+            <span>{actionError}</span>
+          </div>
+        )}
+        <p style={{ fontSize: '13.5px', color: '#334155', lineHeight: 1.5, margin: '0 0 6px' }}>
+          {confirmAction?.kind === 'delete' ? (
+            <>Hapus permanen <strong>{confirmAction?.supplier.name}</strong>? Tindakan ini tidak bisa dibatalkan.</>
+          ) : (
+            <>Nonaktifkan <strong>{confirmAction?.supplier.name}</strong>? Bot dan form stok masuk tidak akan menawarkannya lagi. Riwayat tetap ada dan bisa diaktifkan lagi kapan saja.</>
+          )}
+        </p>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px', paddingTop: '16px', borderTop: '1px solid #E2E8F0' }}>
+          <button type="button" className="btn btn-secondary" onClick={() => setConfirmAction(null)} disabled={busyId !== null}>
+            Batal
+          </button>
+          {confirmAction?.kind === 'delete' ? (
+            <button
+              type="button"
+              className="btn btn-danger"
+              disabled={busyId !== null}
+              onClick={() => confirmAction && deletePermanent(confirmAction.supplier)}
+            >
+              {busyId !== null ? 'Menghapus...' : 'Hapus permanen'}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={busyId !== null}
+              onClick={() => confirmAction && setActive(confirmAction.supplier, false)}
+            >
+              {busyId !== null ? 'Memproses...' : 'Nonaktifkan'}
+            </button>
+          )}
+        </div>
+      </Modal>
+
+      <style jsx global>{`
+        .sup-icon-btn {
+          padding: 6px;
+          border-radius: var(--radius-sm);
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          transition: all var(--transition-fast);
+        }
+        .sup-icon-btn.action-btn-edit { color: #334155; background: #F8FAFC; border: 1px solid #E2E8F0; }
+        .sup-icon-btn.action-btn-delete { color: #DC2626; background: #FEF2F2; border: 1px solid #FECACA; }
+        .sup-icon-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .sup-icon-btn.action-btn-edit:not(:disabled):hover { background: #0F172A; color: #FFFFFF; border-color: #0F172A; }
+        .sup-icon-btn.action-btn-delete:not(:disabled):hover { background: #DC2626; color: #FFFFFF; border-color: #DC2626; }
+      `}</style>
     </DashboardLayout>
   );
 }

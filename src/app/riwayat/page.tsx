@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
-import { Transaction, Product, TransactionType } from '@/types';
+import { Transaction, Product, Supplier, TransactionType, TransactionKind, SUPPLIER_JENIS } from '@/types';
 import { formatDateTime } from '@/lib/export-utils';
+import { SUPPLIER_JENIS_LABEL, TRANSACTION_KIND_LABEL, TRANSACTION_KINDS } from '@/lib/stock-labels';
 import {
   Download,
   Calendar,
@@ -17,9 +18,7 @@ import {
   PlusCircle,
   Receipt,
   CheckCircle2,
-  AlertCircle,
-  ArrowDownToLine,
-  ChevronDown
+  AlertCircle
 } from 'lucide-react';
 
 export default function RiwayatPage() {
@@ -31,24 +30,45 @@ export default function RiwayatPage() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [selectedProductId, setSelectedProductId] = useState('all');
-  const [selectedType, setSelectedType] = useState<'all' | TransactionType>('all');
+  const [selectedKind, setSelectedKind] = useState<'all' | TransactionKind>('all');
 
-  // Export state
-  const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
+  // Export Modal state
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
   // Manual Transaction Modal state
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const [isSavingManual, setIsSavingManual] = useState(false);
+  // Satu kunci unik per pembukaan form: kirim ulang yang sama tidak akan tercatat dua kali.
+  const manualKeyRef = useRef('');
   const [manualForm, setManualForm] = useState({
     product_id: '',
     type: 'in' as TransactionType,
     qty: 1,
-    unit_mode: 'pcs',
-    supplier_name: 'Unilever',
+    supplier_id: '',
     note: ''
   });
   const [manualError, setManualError] = useState('');
+  const [allSuppliers, setAllSuppliers] = useState<Supplier[]>([]);
+  // Peringatan lunak: produk + supplier yang belum pernah dipakai bersama.
+  const [pairConfirm, setPairConfirm] = useState<{ productName: string; supplierName: string } | null>(null);
+
+  const fetchSuppliers = async () => {
+    try {
+      const res = await fetch('/api/suppliers');
+      if (res.ok) setAllSuppliers(await res.json());
+    } catch (err) {
+      console.error('Error fetching suppliers:', err);
+    }
+  };
+
+  // Hanya supplier AKTIF non-sistem, dikelompokkan per jenis. "Koreksi Stok" tidak ditawarkan:
+  // database menolak stok masuk manual ke supplier itu (check_violation), begitu juga supplier nonaktif.
+  const supplierGroups = SUPPLIER_JENIS.map((jenis) => ({
+    jenis,
+    items: allSuppliers.filter((x) => !x.is_adjustment && x.is_active && x.jenis === jenis)
+  })).filter((g) => g.items.length > 0);
 
   const fetchProducts = async () => {
     try {
@@ -69,7 +89,7 @@ export default function RiwayatPage() {
       if (startDate) params.append('startDate', startDate);
       if (endDate) params.append('endDate', endDate);
       if (selectedProductId !== 'all') params.append('productId', selectedProductId);
-      if (selectedType !== 'all') params.append('type', selectedType);
+      if (selectedKind !== 'all') params.append('kind', selectedKind);
 
       const res = await fetch(`/api/transactions?${params.toString()}`);
       if (res.ok) {
@@ -85,11 +105,12 @@ export default function RiwayatPage() {
 
   useEffect(() => {
     fetchProducts();
+    fetchSuppliers();
   }, []);
 
   useEffect(() => {
     fetchTransactions();
-  }, [startDate, endDate, selectedProductId, selectedType]);
+  }, [startDate, endDate, selectedProductId, selectedKind]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -100,7 +121,7 @@ export default function RiwayatPage() {
     setStartDate('');
     setEndDate('');
     setSelectedProductId('all');
-    setSelectedType('all');
+    setSelectedKind('all');
   };
 
   // Handle Export File
@@ -112,7 +133,7 @@ export default function RiwayatPage() {
       if (startDate) params.append('startDate', startDate);
       if (endDate) params.append('endDate', endDate);
       if (selectedProductId !== 'all') params.append('productId', selectedProductId);
-      if (selectedType !== 'all') params.append('type', selectedType);
+      if (selectedKind !== 'all') params.append('kind', selectedKind);
 
       const res = await fetch(`/api/transactions/export?${params.toString()}`);
       if (!res.ok) throw new Error('Gagal mengunduh laporan');
@@ -126,6 +147,7 @@ export default function RiwayatPage() {
       a.click();
       document.body.removeChild(a);
 
+      setIsExportModalOpen(false);
       showToast(`Laporan ${format.toUpperCase()} berhasil diunduh`);
     } catch (err) {
       console.error('Gagal mengunduh:', err);
@@ -135,75 +157,44 @@ export default function RiwayatPage() {
     }
   };
 
-  // Handle Manual Transaction Submit
-  const handleManualSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const openManualModal = () => {
+    manualKeyRef.current = crypto.randomUUID();
+    setManualForm({ product_id: '', type: 'in', qty: 1, supplier_id: '', note: '' });
     setManualError('');
+    setPairConfirm(null);
+    setIsManualModalOpen(true);
+  };
 
-    if (!manualForm.product_id) {
-      setManualError('Pilih produk terlebih dahulu');
-      return;
-    }
-
-    const prod = products.find(p => p.id === parseInt(manualForm.product_id, 10));
+  // Kirim transaksi. Kunci idempotensi tetap sama walau dikirim ulang setelah konfirmasi.
+  const postManual = async (confirmNewPair: boolean) => {
+    const prod = products.find((p) => p.id === parseInt(manualForm.product_id, 10));
     if (!prod) return;
-
-    let totalQty = manualForm.qty;
-    let finalNote = manualForm.note;
-    if (manualForm.unit_mode === 'karton') {
-      if (!prod.qty_per_karton) {
-        setManualError(`Produk ini tidak menggunakan karton. Gunakan satuan ${prod.unit}.`);
+    const isIn = manualForm.type === 'in';
+    setIsSavingManual(true);
+    try {
+      const res = await fetch('/api/transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          product_id: prod.id,
+          type: manualForm.type,
+          qty: manualForm.qty,
+          ...(isIn ? { supplier_id: Number(manualForm.supplier_id) } : {}),
+          note: manualForm.note.trim() || null,
+          idempotency_key: manualKeyRef.current,
+          confirm_new_pair: confirmNewPair
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 409 && data.code === 'NEW_PAIR') {
+        const sup = allSuppliers.find((x) => x.id === Number(manualForm.supplier_id));
+        setPairConfirm({ productName: prod.name, supplierName: sup?.name ?? 'supplier ini' });
         return;
       }
-      totalQty = manualForm.qty * prod.qty_per_karton;
-      finalNote = `${manualForm.qty} karton (${totalQty} ${prod.unit})${finalNote ? ` - ${finalNote}` : ''}`;
-    }
-
-    try {
-      if (manualForm.type === 'in') {
-        const supplierRes = await fetch('/api/suppliers', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: manualForm.supplier_name })
-        });
-        const supplierData = await supplierRes.json();
-        if (!supplierRes.ok) {
-          setManualError(supplierData.error || 'Gagal menyimpan supplier');
-          return;
-        }
-
-        const transactionRes = await fetch('/api/transactions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            product_id: prod.id,
-            type: manualForm.type,
-            qty: totalQty,
-            supplier_id: supplierData.id,
-            note: finalNote || null
-          })
-        });
-        const transactionData = await transactionRes.json();
-        if (!transactionRes.ok) {
-          setManualError(transactionData.error || 'Gagal menyimpan transaksi');
-          return;
-        }
-      } else {
-        const transactionRes = await fetch('/api/transactions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            product_id: prod.id,
-            type: manualForm.type,
-            qty: totalQty,
-            note: finalNote || null
-          })
-        });
-        const transactionData = await transactionRes.json();
-        if (!transactionRes.ok) {
-          setManualError(transactionData.error || 'Gagal menyimpan transaksi');
-          return;
-        }
+      if (!res.ok) {
+        setManualError(data.error || 'Gagal menyimpan transaksi');
+        if (data.code === 'SUPPLIER_NONAKTIF') fetchSuppliers();
+        return;
       }
 
       setIsManualModalOpen(false);
@@ -212,28 +203,68 @@ export default function RiwayatPage() {
       fetchProducts();
     } catch {
       setManualError('Terjadi kesalahan pada server');
+    } finally {
+      setIsSavingManual(false);
     }
   };
 
-  const getTxBadgeInfo = (tx: Transaction) => {
-    const isOpname = tx.source === 'opname' || Boolean(tx.opname_id) || (tx.note && tx.note.toLowerCase().includes('opname'));
-    if (tx.type === 'in') {
-      if (isOpname) {
-        return { label: 'Koreksi (opname)', isPositive: true };
-      }
-      return { label: 'Masuk', isPositive: true };
-    } else {
-      if (isOpname) {
-        return { label: 'Keluar (opname)', isPositive: false };
-      }
-      return { label: 'Keluar (manual)', isPositive: false };
+  const handleManualSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isSavingManual) return;
+    setManualError('');
+
+    const prod = products.find((p) => p.id === parseInt(manualForm.product_id, 10));
+    if (!prod) {
+      setManualError('Pilih produk terlebih dahulu');
+      return;
     }
+    if (!Number.isInteger(manualForm.qty) || manualForm.qty < 1) {
+      setManualError('Jumlah minimal 1 pcs');
+      return;
+    }
+
+    if (manualForm.type === 'out') {
+      if (manualForm.note.trim().length < 3) {
+        setManualError('Alasan barang keluar wajib diisi (minimal 3 karakter)');
+        return;
+      }
+      await postManual(false);
+      return;
+    }
+
+    if (!manualForm.supplier_id) {
+      setManualError('Supplier wajib dipilih untuk stok masuk');
+      return;
+    }
+
+    // Cek dulu apakah produk ini pernah masuk dari supplier ini.
+    setIsSavingManual(true);
+    try {
+      const params = new URLSearchParams({ product_id: String(prod.id), supplier_id: manualForm.supplier_id });
+      const res = await fetch(`/api/transactions/pair-check?${params.toString()}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setManualError(data.error || 'Gagal memeriksa riwayat supplier');
+        if (data.code === 'SUPPLIER_NONAKTIF') fetchSuppliers();
+        return;
+      }
+      if (data.is_new) {
+        const sup = allSuppliers.find((x) => x.id === Number(manualForm.supplier_id));
+        setPairConfirm({ productName: prod.name, supplierName: sup?.name ?? 'supplier ini' });
+        return;
+      }
+    } catch {
+      setManualError('Terjadi kesalahan pada server');
+      return;
+    } finally {
+      setIsSavingManual(false);
+    }
+    await postManual(false);
   };
 
-  const getSupplierOrNote = (tx: Transaction) => {
-    if (tx.supplier?.name) return tx.supplier.name;
-    if (tx.note) return tx.note;
-    return '—';
+  const handlePairConfirmYes = async () => {
+    setPairConfirm(null);
+    await postManual(true);
   };
 
   return (
@@ -258,7 +289,7 @@ export default function RiwayatPage() {
             borderRadius: 'var(--radius-md)',
             boxShadow: 'var(--shadow-md)',
             color: '#0F172A',
-            fontSize: '13.5px',
+            fontSize: '13px',
             fontWeight: 600,
             animation: 'fadeIn 0.15s ease'
           }}
@@ -277,7 +308,7 @@ export default function RiwayatPage() {
               borderRadius: 'var(--radius-full)',
               background: '#FFFFFF',
               border: '1px solid #E2E8F0',
-              fontSize: '13px',
+              fontSize: '12.5px',
               fontWeight: 600,
               color: '#0F172A',
               boxShadow: 'var(--shadow-xs)'
@@ -296,139 +327,20 @@ export default function RiwayatPage() {
 
         <div style={{ display: 'flex', gap: '8px' }}>
           <button
-            onClick={() => setIsManualModalOpen(true)}
+            onClick={openManualModal}
             className="btn btn-secondary btn-sm"
           >
             <PlusCircle size={15} />
             <span>Catat Manual</span>
           </button>
 
-          <div style={{ position: 'relative' }}>
-            <button
-              onClick={() => setIsExportDropdownOpen(prev => !prev)}
-              className="btn btn-primary btn-sm"
-              disabled={isExporting}
-              style={{ gap: '6px' }}
-            >
-              <Download size={14} />
-              <span>{isExporting ? 'Mengunduh...' : 'Ekspor Laporan'}</span>
-              <ChevronDown size={14} />
-            </button>
-
-            {isExportDropdownOpen && (
-              <>
-                <div
-                  style={{
-                    position: 'fixed',
-                    inset: 0,
-                    zIndex: 40
-                  }}
-                  onClick={() => setIsExportDropdownOpen(false)}
-                />
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: 'calc(100% + 6px)',
-                    right: 0,
-                    zIndex: 50,
-                    width: '230px',
-                    background: '#FFFFFF',
-                    border: '1px solid #E2E8F0',
-                    borderRadius: '10px',
-                    boxShadow: '0 10px 15px -3px rgba(15, 23, 42, 0.12), 0 4px 6px -4px rgba(15, 23, 42, 0.06)',
-                    padding: '6px',
-                    animation: 'fadeIn 0.12s ease'
-                  }}
-                >
-                  <button
-                    onClick={() => {
-                      setIsExportDropdownOpen(false);
-                      handleExportSubmit('xlsx');
-                    }}
-                    style={{
-                      width: '100%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '10px',
-                      padding: '9px 12px',
-                      borderRadius: '8px',
-                      fontSize: '13.5px',
-                      fontWeight: 600,
-                      color: '#0F172A',
-                      background: 'transparent',
-                      border: 'none',
-                      cursor: 'pointer',
-                      textAlign: 'left'
-                    }}
-                    className="export-dropdown-item"
-                  >
-                    <div
-                      style={{
-                        width: '28px',
-                        height: '28px',
-                        borderRadius: '6px',
-                        background: '#ECFDF5',
-                        border: '1px solid #A7F3D0',
-                        color: '#059669',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}
-                    >
-                      <FileSpreadsheet size={16} />
-                    </div>
-                    <div>
-                      <span style={{ display: 'block', lineHeight: 1.2 }}>Unduh Excel (.xlsx)</span>
-                      <span style={{ fontSize: '12px', color: '#64748B', fontWeight: 400 }}>Spreadsheet rekap KPI</span>
-                    </div>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setIsExportDropdownOpen(false);
-                      handleExportSubmit('pdf');
-                    }}
-                    style={{
-                      width: '100%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '10px',
-                      padding: '9px 12px',
-                      borderRadius: '8px',
-                      fontSize: '13.5px',
-                      fontWeight: 600,
-                      color: '#0F172A',
-                      background: 'transparent',
-                      border: 'none',
-                      cursor: 'pointer',
-                      textAlign: 'left'
-                    }}
-                    className="export-dropdown-item"
-                  >
-                    <div
-                      style={{
-                        width: '28px',
-                        height: '28px',
-                        borderRadius: '6px',
-                        background: '#FEF2F2',
-                        border: '1px solid #FECACA',
-                        color: '#DC2626',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}
-                    >
-                      <FileText size={16} />
-                    </div>
-                    <div>
-                      <span style={{ display: 'block', lineHeight: 1.2 }}>Unduh PDF (.pdf)</span>
-                      <span style={{ fontSize: '12px', color: '#64748B', fontWeight: 400 }}>Dokumen A4 siap cetak</span>
-                    </div>
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
+          <button
+            onClick={() => setIsExportModalOpen(true)}
+            className="btn btn-primary btn-sm"
+          >
+            <Download size={15} />
+            <span>Ekspor Laporan</span>
+          </button>
         </div>
       </div>
 
@@ -455,16 +367,16 @@ export default function RiwayatPage() {
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Filter size={15} style={{ color: '#0F172A' }} />
-            <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', margin: 0 }}>
+            <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', margin: 0 }}>
               Filter Riwayat Transaksi
             </h4>
           </div>
 
-          {(startDate || endDate || selectedProductId !== 'all' || selectedType !== 'all') && (
+          {(startDate || endDate || selectedProductId !== 'all' || selectedKind !== 'all') && (
             <button
               onClick={handleResetFilter}
               className="btn btn-secondary btn-sm"
-              style={{ height: '32px', fontSize: '12.5px', padding: '0 12px' }}
+              style={{ height: '30px', fontSize: '12px', padding: '0 12px' }}
             >
               <RotateCcw size={12} />
               <span>Reset Filter</span>
@@ -481,7 +393,7 @@ export default function RiwayatPage() {
         >
           {/* Dari Tanggal (DD/MM/YYYY) */}
           <div>
-            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
+            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
               <Calendar size={13} style={{ color: '#64748B' }} />
               <span>Dari Tanggal</span>
             </label>
@@ -495,7 +407,7 @@ export default function RiwayatPage() {
                   return `${d}/${m}/${y}`;
                 })() : ''}
                 className="form-input"
-                style={{ paddingRight: '38px', cursor: 'pointer', background: '#FFFFFF', height: '40px', fontSize: '14px' }}
+                style={{ paddingRight: '38px', cursor: 'pointer', background: '#FFFFFF', height: '38px', fontSize: '13px' }}
                 onClick={(e) => {
                   const dateInput = e.currentTarget.nextElementSibling as HTMLInputElement;
                   if (dateInput) {
@@ -535,7 +447,7 @@ export default function RiwayatPage() {
 
           {/* Sampai Tanggal (DD/MM/YYYY) */}
           <div>
-            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
+            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
               <Calendar size={13} style={{ color: '#64748B' }} />
               <span>Sampai Tanggal</span>
             </label>
@@ -549,7 +461,7 @@ export default function RiwayatPage() {
                   return `${d}/${m}/${y}`;
                 })() : ''}
                 className="form-input"
-                style={{ paddingRight: '38px', cursor: 'pointer', background: '#FFFFFF', height: '40px', fontSize: '14px' }}
+                style={{ paddingRight: '38px', cursor: 'pointer', background: '#FFFFFF', height: '38px', fontSize: '13px' }}
                 onClick={(e) => {
                   const dateInput = e.currentTarget.nextElementSibling as HTMLInputElement;
                   if (dateInput) {
@@ -589,13 +501,13 @@ export default function RiwayatPage() {
 
           {/* Filter Produk */}
           <div>
-            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
+            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
               <Filter size={13} style={{ color: '#64748B' }} />
               <span>Filter Produk</span>
             </label>
             <select
               className="form-select"
-              style={{ height: '40px', fontSize: '14px' }}
+              style={{ height: '38px', fontSize: '13px' }}
               value={selectedProductId}
               onChange={(e) => setSelectedProductId(e.target.value)}
             >
@@ -610,34 +522,35 @@ export default function RiwayatPage() {
 
           {/* Jenis Transaksi */}
           <div>
-            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
+            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
               <Filter size={13} style={{ color: '#64748B' }} />
               <span>Jenis Transaksi</span>
             </label>
             <select
               className="form-select"
-              style={{ height: '40px', fontSize: '14px' }}
-              value={selectedType}
-              onChange={(e) => setSelectedType(e.target.value as 'all' | TransactionType)}
+              style={{ height: '38px', fontSize: '13px' }}
+              value={selectedKind}
+              onChange={(e) => setSelectedKind(e.target.value as 'all' | TransactionKind)}
             >
               <option value="all">Semua Jenis</option>
-              <option value="in">Stok Masuk (+)</option>
-              <option value="out">Stok Keluar (-)</option>
+              {TRANSACTION_KINDS.map((k) => (
+                <option key={k} value={k}>{TRANSACTION_KIND_LABEL[k]}</option>
+              ))}
             </select>
           </div>
         </div>
       </div>
 
-      {/* Tabel Riwayat Transaksi Sesuai Desain Mockup */}
+      {/* Tabel Riwayat Transaksi */}
       <div className="table-container">
         <table className="data-table">
           <thead>
             <tr>
-              <th style={{ width: '22%', textAlign: 'left', padding: '14px 20px' }}>TANGGAL &amp; WAKTU</th>
-              <th style={{ width: '16%', textAlign: 'left', padding: '14px 20px' }}>JENIS</th>
-              <th style={{ width: '26%', textAlign: 'left', padding: '14px 20px' }}>PRODUK</th>
-              <th style={{ width: '16%', textAlign: 'left', padding: '14px 20px' }}>JUMLAH</th>
-              <th style={{ width: '20%', textAlign: 'left', padding: '14px 20px' }}>SUPPLIER / CATATAN</th>
+              <th style={{ width: '18%' }}>Tanggal & Waktu</th>
+              <th style={{ width: '12%' }}>Jenis</th>
+              <th style={{ width: '28%' }}>Produk</th>
+              <th style={{ width: '14%', textAlign: 'right' }}>Jumlah</th>
+              <th style={{ width: '28%' }}>Supplier / Catatan</th>
             </tr>
           </thead>
           <tbody>
@@ -659,52 +572,54 @@ export default function RiwayatPage() {
               </tr>
             ) : (
               transactions.map((tx) => {
-                const badgeInfo = getTxBadgeInfo(tx);
-                const isPositive = badgeInfo.isPositive;
-
+                const isIn = tx.type === 'in';
+                const kind: TransactionKind = tx.kind ?? (isIn ? 'masuk' : 'keluar_manual');
+                // "Stok awal" (opname pertama) bukan barang keluar/masuk sungguhan: label netral.
+                const badgeType = kind === 'masuk' ? 'in' : kind === 'koreksi' ? 'koreksi' : kind === 'stok_awal' ? 'neutral' : 'out';
+                const qtyColor = kind === 'masuk' ? '#059669' : kind === 'koreksi' ? '#B45309' : kind === 'stok_awal' ? '#475569' : '#DC2626';
                 return (
                   <tr key={tx.id}>
-                    <td style={{ textAlign: 'left', padding: '14px 20px', color: '#475569', fontSize: '13.5px', whiteSpace: 'nowrap' }}>
+                    <td style={{ color: '#475569', fontSize: '13px' }}>
                       {formatDateTime(tx.created_at)}
                     </td>
-                    <td style={{ textAlign: 'left', padding: '14px 20px', verticalAlign: 'middle' }}>
-                      <span
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          padding: '4px 10px',
-                          borderRadius: 'var(--radius-full)',
-                          fontSize: '12px',
-                          fontWeight: 600,
-                          lineHeight: 1.2,
-                          background: isPositive ? '#ECFDF5' : '#FEF2F2',
-                          color: isPositive ? '#047857' : '#B91C1C',
-                          border: `1px solid ${isPositive ? '#A7F3D0' : '#FECACA'}`,
-                          whiteSpace: 'nowrap'
-                        }}
-                      >
-                        {badgeInfo.label}
-                      </span>
+                    <td>
+                      <Badge type={badgeType}>
+                        {TRANSACTION_KIND_LABEL[kind]}
+                      </Badge>
                     </td>
-                    <td style={{ textAlign: 'left', padding: '14px 20px' }}>
-                      <span style={{ fontWeight: 600, color: '#0F172A', fontSize: '14.5px', display: 'block' }}>
+                    <td>
+                      <span style={{ fontWeight: 600, color: '#0F172A', fontSize: '13.5px' }}>
                         {tx.product?.name || `Produk #${tx.product_id}`}
                       </span>
                     </td>
-                    <td style={{ textAlign: 'left', padding: '14px 20px' }}>
+                    <td style={{ textAlign: 'right' }}>
                       <span
                         style={{
-                          fontWeight: 600,
-                          fontSize: '14px',
-                          color: isPositive ? '#059669' : '#DC2626'
+                          fontWeight: 700,
+                          fontSize: '13.5px',
+                          color: qtyColor
                         }}
                       >
-                        {isPositive ? `+${tx.qty}` : `-${tx.qty}`} {tx.product?.unit || 'pcs'}
+                        {isIn ? '+' : '-'}{tx.qty} pcs
                       </span>
                     </td>
-                    <td style={{ textAlign: 'left', padding: '14px 20px', color: '#475569', fontSize: '13.5px' }}>
-                      {getSupplierOrNote(tx)}
+                    <td>
+                      <div style={{ color: '#475569', fontSize: '13px' }}>
+                        {tx.supplier?.name ? (
+                          <span style={{ fontWeight: 500, color: '#0F172A' }}>
+                            {tx.supplier.name}
+                          </span>
+                        ) : tx.note ? (
+                          <span>{tx.note}</span>
+                        ) : (
+                          <span style={{ color: '#94A3B8' }}>-</span>
+                        )}
+                        {tx.supplier?.name && tx.note && (
+                          <span style={{ color: '#94A3B8', marginLeft: '6px' }}>
+                            ({tx.note})
+                          </span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -714,12 +629,72 @@ export default function RiwayatPage() {
         </table>
       </div>
 
+      {/* Modal Ekspor Laporan */}
+      <Modal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        title="Ekspor Laporan Transaksi"
+        maxWidth="440px"
+      >
+        <div style={{ padding: '4px 0 16px' }}>
+          <p style={{ fontSize: '13px', color: '#64748B', marginBottom: '16px', lineHeight: 1.45 }}>
+            Unduh laporan transaksi sesuai filter tanggal, produk, dan jenis yang sedang dipilih:
+          </p>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <button
+              onClick={() => handleExportSubmit('xlsx')}
+              disabled={isExporting}
+              className="btn btn-secondary"
+              style={{
+                width: '100%',
+                height: '46px',
+                justifyContent: 'flex-start',
+                padding: '0 16px',
+                fontSize: '13.5px'
+              }}
+            >
+              <FileSpreadsheet size={19} style={{ color: '#059669' }} />
+              <div style={{ textAlign: 'left', marginLeft: '8px' }}>
+                <span style={{ fontWeight: 600, display: 'block', color: '#0F172A' }}>Unduh Microsoft Excel (.xlsx)</span>
+                <span style={{ fontSize: '11.5px', color: '#64748B' }}>Format spreadsheet lengkap</span>
+              </div>
+            </button>
+
+            <button
+              onClick={() => handleExportSubmit('pdf')}
+              disabled={isExporting}
+              className="btn btn-secondary"
+              style={{
+                width: '100%',
+                height: '46px',
+                justifyContent: 'flex-start',
+                padding: '0 16px',
+                fontSize: '13.5px'
+              }}
+            >
+              <FileText size={19} style={{ color: '#DC2626' }} />
+              <div style={{ textAlign: 'left', marginLeft: '8px' }}>
+                <span style={{ fontWeight: 600, display: 'block', color: '#0F172A' }}>Unduh Dokumen PDF (.pdf)</span>
+                <span style={{ fontSize: '11.5px', color: '#64748B' }}>Format cetak siap pakai</span>
+              </div>
+            </button>
+          </div>
+
+          {isExporting && (
+            <p style={{ fontSize: '12px', color: '#0F172A', textAlign: 'center', marginTop: '12px' }}>
+              Sedang memproses laporan...
+            </p>
+          )}
+        </div>
+      </Modal>
+
       {/* Modal Catat Transaksi Manual */}
       <Modal
         isOpen={isManualModalOpen}
         onClose={() => setIsManualModalOpen(false)}
         title="Catat Transaksi Manual"
-        maxWidth="520px"
+        maxWidth="480px"
       >
         <form onSubmit={handleManualSubmit}>
           {manualError && (
@@ -747,12 +722,12 @@ export default function RiwayatPage() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               <button
                 type="button"
-                onClick={() => setManualForm({ ...manualForm, type: 'in' })}
+                onClick={() => setManualForm({ ...manualForm, type: 'in', note: '' })}
                 style={{
                   padding: '9px',
                   borderRadius: 'var(--radius-md)',
                   fontWeight: 600,
-                  fontSize: '13.5px',
+                  fontSize: '13px',
                   background: manualForm.type === 'in' ? '#ECFDF5' : '#FFFFFF',
                   color: manualForm.type === 'in' ? '#065F46' : '#475569',
                   border: `1px solid ${manualForm.type === 'in' ? '#A7F3D0' : '#D1D5DB'}`,
@@ -763,12 +738,12 @@ export default function RiwayatPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setManualForm({ ...manualForm, type: 'out' })}
+                onClick={() => setManualForm({ ...manualForm, type: 'out', supplier_id: '', note: '' })}
                 style={{
                   padding: '9px',
                   borderRadius: 'var(--radius-md)',
                   fontWeight: 600,
-                  fontSize: '13.5px',
+                  fontSize: '13px',
                   background: manualForm.type === 'out' ? '#FEF2F2' : '#FFFFFF',
                   color: manualForm.type === 'out' ? '#991B1B' : '#475569',
                   border: `1px solid ${manualForm.type === 'out' ? '#FECACA' : '#D1D5DB'}`,
@@ -785,68 +760,86 @@ export default function RiwayatPage() {
             <select
               className="form-select"
               value={manualForm.product_id}
-              onChange={(e) => setManualForm({ ...manualForm, product_id: e.target.value })}
+              onChange={(e) => setManualForm({ ...manualForm, product_id: e.target.value, supplier_id: '' })}
               required
             >
               <option value="">-- Pilih Produk --</option>
               {products.map((p) => (
                 <option key={p.id} value={p.id.toString()}>
-                  {p.name} (Stok: {p.stock_current} {p.unit})
+                  {p.name} (Stok: {p.stock_current} pcs)
                 </option>
               ))}
             </select>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div className="form-group">
-              <label className="form-label">Jumlah *</label>
-              <input
-                type="number"
-                min={1}
-                className="form-input"
-                value={manualForm.qty}
-                onChange={(e) => setManualForm({ ...manualForm, qty: parseInt(e.target.value, 10) || 1 })}
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Satuan Input *</label>
-              <select
-                className="form-select"
-                value={manualForm.unit_mode}
-                onChange={(e) => setManualForm({ ...manualForm, unit_mode: e.target.value })}
-              >
-                <option value="pcs">Satuan Eceran (pcs)</option>
-                <option value="karton">Karton / Dus</option>
-              </select>
-            </div>
+          <div className="form-group">
+            <label className="form-label">Jumlah (pcs) *</label>
+            <input
+              type="number"
+              min={1}
+              className="form-input"
+              value={manualForm.qty}
+              onChange={(e) => setManualForm({ ...manualForm, qty: parseInt(e.target.value, 10) || 1 })}
+              required
+            />
           </div>
 
           {manualForm.type === 'in' && (
             <div className="form-group">
-              <label className="form-label">Nama Supplier *</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="Contoh: Unilever"
-                value={manualForm.supplier_name}
-                onChange={(e) => setManualForm({ ...manualForm, supplier_name: e.target.value })}
+              <label className="form-label">Supplier *</label>
+              <select
+                className="form-select"
+                value={manualForm.supplier_id}
+                onChange={(e) => setManualForm({ ...manualForm, supplier_id: e.target.value })}
                 required
-              />
+              >
+                <option value="">-- Pilih Supplier --</option>
+                {supplierGroups.map((g) => (
+                  <optgroup key={g.jenis} label={`Supplier ${SUPPLIER_JENIS_LABEL[g.jenis]}`}>
+                    {g.items.map((o) => (
+                      <option key={o.id} value={o.id}>{o.name}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+              {supplierGroups.length === 0 && (
+                <p style={{ fontSize: '12px', color: '#B45309', margin: '4px 0 0' }}>
+                  Belum ada supplier aktif. Tambahkan atau aktifkan supplier di halaman Supplier.
+                </p>
+              )}
             </div>
           )}
 
-          <div className="form-group">
-            <label className="form-label">Catatan Tambahan (Opsional)</label>
-            <input
-              type="text"
-              className="form-input"
-              placeholder="Keterangan singkat..."
-              value={manualForm.note}
-              onChange={(e) => setManualForm({ ...manualForm, note: e.target.value })}
-            />
-          </div>
+          {manualForm.type === 'out' ? (
+            <div className="form-group">
+              <label className="form-label">Alasan (wajib) *</label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Contoh: kemasan rusak, barang hilang"
+                value={manualForm.note}
+                maxLength={200}
+                minLength={3}
+                onChange={(e) => setManualForm({ ...manualForm, note: e.target.value })}
+                required
+              />
+              <p style={{ fontSize: '12px', color: '#64748B', marginTop: '6px' }}>
+                Barang terjual dicatat lewat stok opname di Telegram. Keluar manual hanya untuk barang rusak atau hilang.
+              </p>
+            </div>
+          ) : (
+            <div className="form-group">
+              <label className="form-label">Catatan Tambahan (Opsional)</label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Keterangan singkat..."
+                value={manualForm.note}
+                maxLength={200}
+                onChange={(e) => setManualForm({ ...manualForm, note: e.target.value })}
+              />
+            </div>
+          )}
 
           <div
             style={{
@@ -868,11 +861,35 @@ export default function RiwayatPage() {
             <button
               type="submit"
               className="btn btn-primary"
+              disabled={isSavingManual}
             >
-              Simpan Transaksi
+              {isSavingManual ? 'Menyimpan...' : 'Simpan Transaksi'}
             </button>
           </div>
         </form>
+      </Modal>
+
+      {/* Konfirmasi pasangan produk + supplier baru (peringatan lunak) */}
+      <Modal
+        isOpen={pairConfirm !== null}
+        onClose={() => setPairConfirm(null)}
+        title="Supplier Baru untuk Produk Ini"
+        maxWidth="420px"
+      >
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', marginBottom: '20px' }}>
+          <AlertCircle size={20} style={{ color: '#B45309', flexShrink: 0, marginTop: '1px' }} />
+          <p style={{ fontSize: '13.5px', color: '#0F172A', lineHeight: 1.5, margin: 0 }}>
+            <strong>{pairConfirm?.productName}</strong> belum pernah masuk dari <strong>{pairConfirm?.supplierName}</strong>. Lanjutkan?
+          </p>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+          <button type="button" className="btn btn-secondary" onClick={() => setPairConfirm(null)}>
+            Batal
+          </button>
+          <button type="button" className="btn btn-primary" onClick={handlePairConfirmYes} disabled={isSavingManual}>
+            Ya, Lanjutkan
+          </button>
+        </div>
       </Modal>
     </DashboardLayout>
   );

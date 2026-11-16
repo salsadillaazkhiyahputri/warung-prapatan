@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
+import { readAuthCache, writeAuthCache } from './auth-cache';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -11,78 +12,41 @@ interface DashboardLayoutProps {
   subtitle?: string;
 }
 
-// Global cache to avoid full-screen loading spinner on client-side route transitions
-let isGlobalAuthKnown = false;
-
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   children,
   title,
   subtitle
 }) => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  // If already verified in this session, render immediately with 0 delay!
-  const [isLoadingAuth, setIsLoadingAuth] = useState(() => {
-    if (typeof window !== 'undefined' && (isGlobalAuthKnown || sessionStorage.getItem('wp_authenticated') === 'true')) {
-      return false;
-    }
-    return true;
-  });
+  // Selalu mulai dari "memeriksa" di server maupun client.
+  const [isAuthReady, setIsAuthReady] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
-    // Quick background verification
-    fetch('/api/auth/me')
-      .then(res => {
-        if (!res.ok) {
-          isGlobalAuthKnown = false;
-          if (typeof window !== 'undefined') sessionStorage.removeItem('wp_authenticated');
-          router.push('/login');
-        } else {
-          isGlobalAuthKnown = true;
-          if (typeof window !== 'undefined') sessionStorage.setItem('wp_authenticated', 'true');
-          setIsLoadingAuth(false);
-        }
-      })
-      .catch(() => {
-        isGlobalAuthKnown = false;
-        if (typeof window !== 'undefined') sessionStorage.removeItem('wp_authenticated');
-        router.push('/login');
-      });
-  }, [router]);
+    let cancelled = false;
 
-  if (isLoadingAuth) {
-    return (
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '100vh',
-          background: '#F8FAFC',
-          color: '#64748B',
-          gap: '14px'
-        }}
-      >
-        <div
-          style={{
-            width: '36px',
-            height: '36px',
-            borderRadius: '50%',
-            border: '2.5px solid #E2E8F0',
-            borderTopColor: '#0F172A',
-            animation: 'spin 0.7s linear infinite'
-          }}
-        />
-        <p style={{ fontSize: '13px', fontWeight: 500 }}>Memuat Warung Prapatan...</p>
-        <style jsx>{`
-          @keyframes spin {
-            to { transform: rotate(360deg); }
-          }
-        `}</style>
-      </div>
-    );
-  }
+    // Sudah terverifikasi di tab ini: tampilkan isi segera, verifikasi ulang di latar belakang.
+    if (readAuthCache()) setIsAuthReady(true);
+
+    const fail = () => {
+      if (cancelled) return;
+      writeAuthCache(false);
+      router.push('/login');
+    };
+
+    fetch('/api/auth/me', { cache: 'no-store' })
+      .then((res) => {
+        if (cancelled) return;
+        if (!res.ok) return fail();
+        writeAuthCache(true);
+        setIsAuthReady(true);
+      })
+      .catch(fail);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
   return (
     <div className="app-container">
@@ -98,9 +62,37 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           subtitle={subtitle}
         />
 
-        <main className="page-wrapper animate-fade-in">
-          {children}
-        </main>
+        {isAuthReady ? (
+          <main className="page-wrapper animate-fade-in">
+            {children}
+          </main>
+        ) : (
+          <main className="page-wrapper" aria-busy="true">
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: '50vh',
+                color: '#64748B',
+                gap: '14px'
+              }}
+            >
+              <div
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  border: '2.5px solid #E2E8F0',
+                  borderTopColor: '#0F172A',
+                  animation: 'spin 0.7s linear infinite'
+                }}
+              />
+              <p style={{ fontSize: '13px', fontWeight: 500 }}>Memuat Warung Prapatan...</p>
+            </div>
+          </main>
+        )}
       </div>
 
       <style jsx global>{`

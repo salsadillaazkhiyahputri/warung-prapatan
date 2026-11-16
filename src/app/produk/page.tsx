@@ -1,9 +1,16 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Modal } from '@/components/ui/Modal';
-import { Product } from '@/types';
+import { Badge } from '@/components/ui/Badge';
+import { Product, DEFAULT_CATEGORY } from '@/types';
+import { relativeDayLabel, isCountStale } from '@/lib/stock-labels';
+import { formatDateOnly } from '@/lib/export-utils';
+import { otherSuppliersLabel } from '@/lib/product-suppliers';
+import { BASE_CATEGORIES, CATEGORY_MAX_LENGTH, normalizeCategory } from '@/lib/categories';
+
+const CATEGORY_LIST_ID = 'kategori-saran';
 import {
   Plus,
   Search,
@@ -15,24 +22,42 @@ import {
   Boxes
 } from 'lucide-react';
 
-const FOURTEEN_DAYS_MS = 14 * 24 * 60 * 60 * 1000;
+const NEEDS_REVIEW_FILTER = 'perlu-dilengkapi';
 
-const DEFAULT_CATEGORIES = [
-  'Makanan',
-  'Minuman',
-  'Bumbu',
-  'Perlengkapan',
-  'Sembako',
-  'Mie',
-  'Sabun',
-  'Lainnya'
-];
+const EMPTY_FORM = {
+  name: '',
+  category: DEFAULT_CATEGORY,
+  stock_current: 0,
+  stock_minimum: 10
+};
 
 export default function ProdukPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('Semua Kategori');
+  const [selectedCategory, setSelectedCategory] = useState('Semua');
+  // Filter "Perlu dilengkapi" (barang dari bot, needs_review). Bisa dibuka dari kartu dashboard
+  // lewat /produk?filter=perlu-dilengkapi. URL dibaca di useEffect agar aman untuk hidrasi.
+  const [onlyNeedsReview, setOnlyNeedsReview] = useState(false);
+
+  useEffect(() => {
+    try {
+      if (new URLSearchParams(window.location.search).get('filter') === NEEDS_REVIEW_FILTER) setOnlyNeedsReview(true);
+    } catch {
+      // abaikan
+    }
+  }, []);
+
+  const toggleNeedsReview = (on: boolean) => {
+    setOnlyNeedsReview(on);
+    try {
+      const url = new URL(window.location.href);
+      if (on) url.searchParams.set('filter', NEEDS_REVIEW_FILTER); else url.searchParams.delete('filter');
+      window.history.replaceState(null, '', url.toString());
+    } catch {
+      // abaikan
+    }
+  };
 
   // Modals state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -41,14 +66,70 @@ export default function ProdukPage() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
   // Form states
-  const [formData, setFormData] = useState({
-    name: '',
-    category: 'Makanan',
-    unit: 'pcs',
-    qty_per_karton: null as number | null,
-    stock_current: 0,
-    stock_minimum: 10
-  });
+  const [formData, setFormData] = useState(EMPTY_FORM);
+  // Saran kategori di form (daftar tetap + kategori yang pernah dipakai) dan kategori untuk filter
+  // (hanya yang dipakai produk aktif). Daftar tetap jadi nilai awal agar saran tidak pernah kosong.
+  const [categories, setCategories] = useState<string[]>([...BASE_CATEGORIES]);
+  const [usedCategories, setUsedCategories] = useState<string[]>([]);
+
+  const fetchCategories = async () => {
+    try {
+      const [sugRes, usedRes] = await Promise.all([
+        fetch('/api/products/categories'),
+        fetch('/api/products/categories?scope=used')
+      ]);
+      if (sugRes.ok) setCategories(await sugRes.json());
+      if (usedRes.ok) {
+        const used: string[] = await usedRes.json();
+        setUsedCategories(used);
+        // Kategori terpilih tidak punya produk lagi -> kembali ke "Semua".
+        setSelectedCategory((cur) => (cur === 'Semua' || used.includes(cur) ? cur : 'Semua'));
+      }
+    } catch (err) {
+      console.error('Error fetching categories:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  // Pratinjau perapian kategori (aturan yang sama dengan server).
+  const categoryCheck = normalizeCategory(formData.category, categories);
+  const categoryHint = categoryCheck.ok
+    ? categoryCheck.value !== formData.category.trim() || !categories.includes(categoryCheck.value)
+      ? `Disimpan sebagai "${categoryCheck.value}"${categories.includes(categoryCheck.value) ? '' : ' (kategori baru)'}`
+      : ''
+    : '';
+
+  const renderCategoryInput = () => (
+    <div className="form-group">
+      <label className="form-label">Kategori *</label>
+      <input
+        type="text"
+        className="form-input"
+        list={CATEGORY_LIST_ID}
+        value={formData.category}
+        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+        placeholder="Pilih atau ketik kategori"
+        maxLength={CATEGORY_MAX_LENGTH + 10}
+        autoComplete="off"
+        required
+      />
+      {categoryHint && (
+        <p style={{ fontSize: '12px', color: '#64748B', margin: '4px 0 0' }}>{categoryHint}</p>
+      )}
+    </div>
+  );
+
+  // Rapikan kategori di browser sebelum dikirim; server merapikan lagi dengan aturan yang sama.
+  const checkCategory = (): string | null => {
+    if (!categoryCheck.ok) {
+      setFormError(categoryCheck.error);
+      return null;
+    }
+    return categoryCheck.value;
+  };
 
   const [formError, setFormError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -60,9 +141,7 @@ export default function ProdukPage() {
       let url = '/api/products';
       const params = new URLSearchParams();
       if (searchQuery) params.append('q', searchQuery);
-      if (selectedCategory !== 'Semua Kategori' && selectedCategory !== 'Semua') {
-        params.append('category', selectedCategory);
-      }
+      if (selectedCategory !== 'Semua') params.append('category', selectedCategory);
       if (params.toString()) url += `?${params.toString()}`;
 
       const res = await fetch(url);
@@ -81,6 +160,9 @@ export default function ProdukPage() {
     fetchProducts();
   }, [selectedCategory]);
 
+  const needsReviewCount = products.filter((p) => p.needs_review).length;
+  const visibleProducts = onlyNeedsReview ? products.filter((p) => p.needs_review) : products;
+
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     fetchProducts();
@@ -91,39 +173,9 @@ export default function ProdukPage() {
     setTimeout(() => setToastMessage(''), 3000);
   };
 
-  // Dinamis kategori untuk dropdown filter
-  const categoryOptions = useMemo(() => {
-    const list = new Set<string>(DEFAULT_CATEGORIES);
-    products.forEach((p) => {
-      if (p.category) list.add(p.category);
-    });
-    return Array.from(list);
-  }, [products]);
-
-  // Format status terakhir dihitung stok opname
-  const formatLastCounted = (dateStr?: string | null) => {
-    if (!dateStr) {
-      return { text: 'Belum pernah', isUrgent: true };
-    }
-    const diffMs = Date.now() - new Date(dateStr).getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    const isUrgent = diffMs > FOURTEEN_DAYS_MS;
-
-    if (diffDays <= 0) return { text: 'Hari ini', isUrgent: false };
-    if (diffDays === 1) return { text: 'Kemarin', isUrgent: false };
-    return { text: `${diffDays} hari lalu`, isUrgent };
-  };
-
   // 1. Tambah Produk
   const openAddModal = () => {
-    setFormData({
-      name: '',
-      category: 'Makanan',
-      unit: 'pcs',
-      qty_per_karton: null,
-      stock_current: 0,
-      stock_minimum: 10
-    });
+    setFormData(EMPTY_FORM);
     setFormError('');
     setIsAddModalOpen(true);
   };
@@ -136,29 +188,30 @@ export default function ProdukPage() {
       setFormError('Nama produk wajib diisi');
       return;
     }
-    if (!formData.category.trim()) {
-      setFormError('Kategori produk wajib diisi');
-      return;
-    }
+    const category = checkCategory();
+    if (!category) return;
 
     setIsSaving(true);
     try {
       const res = await fetch('/api/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({ ...formData, category })
       });
 
-      const json = await res.json();
+      const data = await res.json();
       if (!res.ok) {
-        setFormError(json.error || 'Gagal menambahkan produk');
-      } else {
-        setIsAddModalOpen(false);
-        showToast('Produk berhasil ditambahkan');
-        fetchProducts();
+        setFormError(data.error || 'Gagal menambahkan produk');
+        setIsSaving(false);
+        return;
       }
+
+      setIsAddModalOpen(false);
+      showToast(`Produk "${formData.name}" berhasil ditambahkan`);
+      fetchProducts();
+      fetchCategories();
     } catch {
-      setFormError('Terjadi kesalahan jaringan');
+      setFormError('Terjadi kesalahan pada server');
     } finally {
       setIsSaving(false);
     }
@@ -170,8 +223,6 @@ export default function ProdukPage() {
     setFormData({
       name: product.name,
       category: product.category,
-      unit: product.unit || 'pcs',
-      qty_per_karton: product.qty_per_karton,
       stock_current: product.stock_current,
       stock_minimum: product.stock_minimum
     });
@@ -188,25 +239,30 @@ export default function ProdukPage() {
       setFormError('Nama produk wajib diisi');
       return;
     }
+    const category = checkCategory();
+    if (!category) return;
 
     setIsSaving(true);
     try {
       const res = await fetch(`/api/products/${selectedProduct.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({ name: formData.name, category, stock_minimum: formData.stock_minimum })
       });
 
-      const json = await res.json();
+      const data = await res.json();
       if (!res.ok) {
-        setFormError(json.error || 'Gagal memperbarui produk');
-      } else {
-        setIsEditModalOpen(false);
-        showToast('Data produk berhasil diperbarui');
-        fetchProducts();
+        setFormError(data.error || 'Gagal memperbarui produk');
+        setIsSaving(false);
+        return;
       }
+
+      setIsEditModalOpen(false);
+      showToast(`Produk "${formData.name}" berhasil diperbarui`);
+      fetchProducts();
+      fetchCategories();
     } catch {
-      setFormError('Terjadi kesalahan jaringan');
+      setFormError('Terjadi kesalahan pada server');
     } finally {
       setIsSaving(false);
     }
@@ -228,11 +284,11 @@ export default function ProdukPage() {
 
       if (res.ok) {
         setIsDeleteModalOpen(false);
-        showToast('Produk berhasil dihapus');
+        showToast(`Produk "${selectedProduct.name}" berhasil dihapus`);
         fetchProducts();
+        fetchCategories();
       } else {
-        const json = await res.json();
-        alert(json.error || 'Gagal menghapus produk');
+        alert('Gagal menghapus produk');
       }
     } catch {
       alert('Terjadi kesalahan saat menghapus');
@@ -263,7 +319,7 @@ export default function ProdukPage() {
             borderRadius: 'var(--radius-md)',
             boxShadow: 'var(--shadow-md)',
             color: '#0F172A',
-            fontSize: '13.5px',
+            fontSize: '13px',
             fontWeight: 600,
             animation: 'fadeIn 0.15s ease'
           }}
@@ -300,29 +356,35 @@ export default function ProdukPage() {
             <input
               type="text"
               className="form-input"
-              style={{ paddingLeft: '38px', height: '40px', fontSize: '14px' }}
-              placeholder="Cari produk..."
+              style={{ paddingLeft: '38px', height: '38px', fontSize: '13.5px' }}
+              placeholder="Cari produk atau supplier..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </form>
 
           {/* Category Dropdown */}
-          <div style={{ width: '170px' }}>
+          <div style={{ width: '160px' }}>
             <select
               className="form-select"
-              style={{ height: '40px', fontSize: '14px' }}
+              style={{ height: '38px', fontSize: '13px' }}
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
             >
-              <option value="Semua Kategori">Semua Kategori</option>
-              {categoryOptions.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
+              <option value="Semua">Semua Kategori</option>
+              {usedCategories.map((c) => (
+                <option key={c} value={c}>{c}</option>
               ))}
             </select>
           </div>
+
+          <label
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', color: '#334155', cursor: 'pointer', userSelect: 'none' }}
+            title="Barang yang didaftarkan lewat bot dan belum dilengkapi kategori/minimumnya"
+          >
+            <input type="checkbox" checked={onlyNeedsReview} onChange={(e) => toggleNeedsReview(e.target.checked)} />
+            Perlu dilengkapi{needsReviewCount > 0 ? ` (${needsReviewCount})` : ''}
+          </label>
         </div>
 
         {/* Action Buttons */}
@@ -343,49 +405,84 @@ export default function ProdukPage() {
         </div>
       </div>
 
-      {/* Tabel Data Produk Sesuai Desain Mockup */}
+      {/* Tabel Data Produk Sesuai Proposal */}
       <div className="table-container">
         <table className="data-table">
           <thead>
             <tr>
-              <th style={{ width: '32%' }}>NAMA</th>
-              <th style={{ width: '22%' }}>KATEGORI</th>
-              <th style={{ width: '18%' }}>STOK</th>
-              <th style={{ width: '18%' }}>TERAKHIR DIHITUNG</th>
-              <th style={{ width: '10%', textAlign: 'center' }}>AKSI</th>
+              <th style={{ width: '28%' }}>Nama</th>
+              <th style={{ width: '14%' }}>Kategori</th>
+              <th style={{ width: '20%' }} title="Supplier dari stok masuk terakhir. Satu barang bisa datang dari beberapa supplier.">Supplier terakhir</th>
+              <th style={{ width: '13%' }}>Stok</th>
+              <th style={{ width: '17%' }}>Terakhir dihitung</th>
+              <th style={{ width: '80px', textAlign: 'center' }}>Aksi</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={5} style={{ textAlign: 'center', padding: '36px', color: '#94A3B8' }}>
+                <td colSpan={6} style={{ textAlign: 'center', padding: '36px', color: '#94A3B8' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                     <div style={{ width: '16px', height: '16px', borderRadius: '50%', border: '2px solid #CBD5E1', borderTopColor: '#0F172A', animation: 'spin 0.6s linear infinite' }} />
                     <span>Memuat data produk...</span>
                   </div>
                 </td>
               </tr>
-            ) : products.length === 0 ? (
+            ) : visibleProducts.length === 0 ? (
               <tr>
-                <td colSpan={5} style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>
+                <td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>
                   <Boxes size={32} style={{ color: '#94A3B8', margin: '0 auto 8px', display: 'block' }} />
-                  <span>Tidak ada produk yang sesuai.</span>
+                  <span>{onlyNeedsReview ? 'Tidak ada barang yang perlu dilengkapi.' : 'Tidak ada produk yang sesuai.'}</span>
                 </td>
               </tr>
             ) : (
-              products.map((item) => {
+              visibleProducts.map((item) => {
                 const isLowStock = item.stock_current <= item.stock_minimum;
-                const lastCount = formatLastCounted(item.last_counted_at);
+                const staleCount = isCountStale(item.last_counted_at);
+                const countTitle = item.last_counted_at
+                  ? `${formatDateOnly(item.last_counted_at)}${item.last_counted_qty != null ? ` · hitungan ${item.last_counted_qty} pcs` : ''}`
+                  : 'Belum pernah dihitung lewat stok opname';
 
                 return (
                   <tr key={item.id}>
                     <td>
-                      <div style={{ fontWeight: 600, color: '#0F172A', fontSize: '14.5px' }}>
+                      <div style={{ fontWeight: 600, color: '#0F172A', fontSize: '13.5px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                         {item.name}
+                        {item.needs_review && (
+                          <Badge type="warning" title="Didaftarkan lewat bot. Lengkapi kategori dan batas minimum lewat tombol Edit.">
+                            Perlu dilengkapi
+                          </Badge>
+                        )}
                       </div>
                     </td>
-                    <td style={{ color: '#475569', fontSize: '14px' }}>
+                    <td style={{ color: '#334155', fontSize: '13px' }}>
                       {item.category}
+                    </td>
+                    <td style={{ fontSize: '13px' }}>
+                      {item.last_supplier_name ? (
+                        <>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', color: '#0F172A', fontWeight: 500 }}>
+                            <span>{item.last_supplier_name}</span>
+                            {item.last_supplier_active === false && (
+                              <Badge type="neutral" title="Supplier ini sedang nonaktif">Nonaktif</Badge>
+                            )}
+                            {otherSuppliersLabel(item.supplier_count ?? 1) && (
+                              <span title={(item.supplier_names ?? []).join(', ')} style={{ cursor: 'help' }}>
+                                <Badge type="neutral" title={(item.supplier_names ?? []).join(', ')}>
+                                  {otherSuppliersLabel(item.supplier_count ?? 1)}
+                                </Badge>
+                              </span>
+                            )}
+                          </div>
+                          {item.last_in_at && (
+                            <div style={{ fontSize: '11.5px', color: '#94A3B8', marginTop: '2px' }}>
+                              {formatDateOnly(item.last_in_at)}
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <span style={{ color: '#94A3B8' }} title="Belum pernah ada stok masuk">-</span>
+                      )}
                     </td>
                     <td>
                       <span
@@ -398,16 +495,15 @@ export default function ProdukPage() {
                         {item.stock_current} pcs
                       </span>
                     </td>
-                    <td>
-                      <span
-                        style={{
-                          fontSize: '14px',
-                          fontWeight: lastCount.isUrgent ? 700 : 400,
-                          color: lastCount.isUrgent ? '#DC2626' : '#64748B'
-                        }}
-                      >
-                        {lastCount.text}
-                      </span>
+                    <td
+                      title={countTitle}
+                      style={{
+                        fontSize: '13px',
+                        fontWeight: staleCount ? 600 : 400,
+                        color: staleCount ? '#DC2626' : '#475569'
+                      }}
+                    >
+                      {relativeDayLabel(item.last_counted_at)}
                     </td>
                     <td style={{ textAlign: 'center' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
@@ -416,13 +512,12 @@ export default function ProdukPage() {
                           style={{
                             padding: '6px',
                             borderRadius: 'var(--radius-sm)',
-                            color: '#475569',
-                            background: '#FFFFFF',
+                            color: '#334155',
+                            background: '#F8FAFC',
                             border: '1px solid #E2E8F0',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            cursor: 'pointer',
                             transition: 'all var(--transition-fast)'
                           }}
                           className="action-btn-edit"
@@ -441,7 +536,6 @@ export default function ProdukPage() {
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            cursor: 'pointer',
                             transition: 'all var(--transition-fast)'
                           }}
                           className="action-btn-delete"
@@ -459,12 +553,19 @@ export default function ProdukPage() {
         </table>
       </div>
 
+      {/* Saran kategori untuk form Tambah dan Ubah (input + datalist) */}
+      <datalist id={CATEGORY_LIST_ID}>
+        {categories.map((c) => (
+          <option key={c} value={c} />
+        ))}
+      </datalist>
+
       {/* MODAL 1: Tambah Produk */}
       <Modal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         title="Tambah Produk Baru"
-        maxWidth="520px"
+        maxWidth="500px"
       >
         <form onSubmit={handleAddSubmit}>
           {formError && (
@@ -500,35 +601,8 @@ export default function ProdukPage() {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-            <div className="form-group">
-              <label className="form-label">Kategori *</label>
-              <select
-                className="form-select"
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              >
-                {DEFAULT_CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {renderCategoryInput()}
 
-            <div className="form-group">
-              <label className="form-label">Satuan Eceran *</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="pcs"
-                value={formData.unit}
-                onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                required
-              />
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
             <div className="form-group">
               <label className="form-label">Stok Awal (pcs)</label>
               <input
@@ -539,18 +613,18 @@ export default function ProdukPage() {
                 onChange={(e) => setFormData({ ...formData, stock_current: parseInt(e.target.value, 10) || 0 })}
               />
             </div>
+          </div>
 
-            <div className="form-group">
-              <label className="form-label">Batas Minimum Stok (pcs) *</label>
-              <input
-                type="number"
-                min={0}
-                className="form-input"
-                value={formData.stock_minimum}
-                onChange={(e) => setFormData({ ...formData, stock_minimum: parseInt(e.target.value, 10) || 0 })}
-                required
-              />
-            </div>
+          <div className="form-group">
+            <label className="form-label">Batas Minimum Stok (pcs) *</label>
+            <input
+              type="number"
+              min={0}
+              className="form-input"
+              value={formData.stock_minimum}
+              onChange={(e) => setFormData({ ...formData, stock_minimum: parseInt(e.target.value, 10) || 0 })}
+              required
+            />
           </div>
 
           <div
@@ -586,9 +660,14 @@ export default function ProdukPage() {
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         title="Ubah Data Produk"
-        maxWidth="520px"
+        maxWidth="500px"
       >
         <form onSubmit={handleEditSubmit}>
+          {selectedProduct?.needs_review && (
+            <div style={{ padding: '10px 14px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 'var(--radius-sm)', color: '#92400E', fontSize: '12.5px', marginBottom: '16px', lineHeight: 1.45 }}>
+              Barang baru dari bot. Periksa nama, kategori (&quot;Lainnya&quot; boleh), dan batas minimum. Tanda &quot;Perlu dilengkapi&quot; hilang otomatis setelah disimpan.
+            </div>
+          )}
           {formError && (
             <div
               style={{
@@ -621,71 +700,27 @@ export default function ProdukPage() {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-            <div className="form-group">
-              <label className="form-label">Kategori *</label>
-              <select
-                className="form-select"
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              >
-                {DEFAULT_CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {renderCategoryInput()}
 
             <div className="form-group">
-              <label className="form-label">Satuan Ecer *</label>
-              <input
-                type="text"
-                className="form-input"
-                value={formData.unit}
-                onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                required
-              />
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-            <div className="form-group">
-              <label className="form-label">Isi per Karton</label>
-              <input
-                type="number"
-                min={1}
-                className="form-input"
-                placeholder="24"
-                value={formData.qty_per_karton ?? ''}
-                onChange={(e) => setFormData({
-                  ...formData,
-                  qty_per_karton: e.target.value ? parseInt(e.target.value, 10) : null
-                })}
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Stok Saat Ini ({formData.unit})</label>
+              <label className="form-label">Stok Saat Ini (pcs)</label>
               <input
                 type="number"
                 className="form-input"
                 value={formData.stock_current}
                 disabled
-                style={{
-                  background: '#F8FAFC',
-                  color: '#64748B',
-                  borderColor: '#E2E8F0',
-                  cursor: 'not-allowed'
-                }}
+                readOnly
+                title="Stok hanya berubah lewat transaksi atau stok opname"
+                style={{ background: '#F1F5F9', color: '#64748B', cursor: 'not-allowed' }}
               />
-              <p style={{ fontSize: '11.5px', color: '#64748B', marginTop: '5px', lineHeight: 1.3 }}>
-                Stok diubah lewat Riwayat &rarr; Catat Manual.
+              <p style={{ fontSize: '12px', color: '#64748B', margin: '4px 0 0' }}>
+                Stok diubah lewat Riwayat &rarr; Catat Manual atau stok opname di Telegram.
               </p>
             </div>
           </div>
 
           <div className="form-group">
-            <label className="form-label">Batas Minimum Stok ({formData.unit}) *</label>
+            <label className="form-label">Batas Minimum Stok (pcs) *</label>
             <input
               type="number"
               min={0}
@@ -729,7 +764,7 @@ export default function ProdukPage() {
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
         title="Konfirmasi Hapus"
-        maxWidth="440px"
+        maxWidth="420px"
       >
         <div style={{ textAlign: 'center', padding: '10px 0 20px' }}>
           <div
@@ -748,11 +783,11 @@ export default function ProdukPage() {
           >
             <Trash2 size={20} />
           </div>
-          <h4 style={{ fontSize: '16px', fontWeight: 700, color: '#0F172A' }}>
+          <h4 style={{ fontSize: '15.5px', fontWeight: 700, color: '#0F172A' }}>
             Hapus produk ini?
           </h4>
-          <p style={{ fontSize: '13.5px', color: '#64748B', marginTop: '6px', lineHeight: 1.45 }}>
-            Produk &quot;{selectedProduct?.name}&quot; beserta riwayat terkait akan dihapus dari sistem.
+          <p style={{ fontSize: '13px', color: '#64748B', marginTop: '6px', lineHeight: 1.45 }}>
+            Produk &quot;{selectedProduct?.name}&quot; akan dinonaktifkan. Riwayat transaksinya tetap tersimpan.
           </p>
         </div>
 

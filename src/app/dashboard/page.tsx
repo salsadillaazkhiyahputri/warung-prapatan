@@ -8,12 +8,13 @@ import { Badge } from '@/components/ui/Badge';
 import { DashboardStats } from '@/types';
 import {
   Package,
-  ArrowUpDown,
+  ClipboardCheck,
   AlertTriangle,
   ArrowRight,
   Plus,
   RefreshCw,
-  CheckCircle2
+  CheckCircle2,
+  PackagePlus
 } from 'lucide-react';
 
 export default function DashboardPage() {
@@ -41,13 +42,13 @@ export default function DashboardPage() {
 
   return (
     <DashboardLayout
-      title="Dashboard"
+      title="Dashboard Utama"
       subtitle="Ringkasan ketersediaan stok barang dan transaksi toko"
     >
       {/* Action Header */}
       <div className="page-header-box" style={{ marginBottom: '20px' }}>
         <div>
-          <p style={{ fontSize: '13.5px', color: '#64748B' }}>
+          <p style={{ fontSize: '13px', color: '#64748B' }}>
             Pantau pergerakan stok toko secara langsung
           </p>
         </div>
@@ -68,6 +69,35 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Barang baru dari bot yang belum dilengkapi. Disembunyikan bila 0. */}
+      {!isLoading && (stats?.needs_review_count ?? 0) > 0 && (
+        <Link
+          href="/produk?filter=perlu-dilengkapi"
+          className="hover-link"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '10px',
+            padding: '10px 16px',
+            marginBottom: '18px',
+            background: '#FFFBEB',
+            border: '1px solid #FDE68A',
+            borderRadius: 'var(--radius-md)',
+            color: '#92400E',
+            fontSize: '13px',
+            fontWeight: 600
+          }}
+        >
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+            <PackagePlus size={16} />
+            {stats!.needs_review_count} barang perlu dilengkapi
+            <span style={{ fontWeight: 400, color: '#B45309' }}>· didaftarkan lewat bot, kategori dan minimum belum diatur</span>
+          </span>
+          <ArrowRight size={14} />
+        </Link>
+      )}
+
       {/* 3 Metric Summary Cards */}
       <div
         style={{
@@ -84,12 +114,15 @@ export default function DashboardPage() {
           subtitle="Item aktif dalam sistem"
         />
 
-        <StatCard
-          title="Transaksi Hari Ini"
-          value={isLoading ? '...' : stats?.today_transactions_count || 0}
-          icon={<ArrowUpDown size={24} />}
-          subtitle="Aktivitas masuk dan keluar"
-        />
+        <Link href="/produk" style={{ display: 'block', color: 'inherit' }} title="Lihat kolom Terakhir dihitung di halaman Produk">
+          <StatCard
+            title="Perlu Dihitung"
+            value={isLoading ? '...' : stats?.perlu_dihitung_count || 0}
+            icon={<ClipboardCheck size={24} />}
+            subtitle="Belum pernah atau > 14 hari tidak dihitung"
+            isAlert={Boolean(stats && stats.perlu_dihitung_count > 0)}
+          />
+        </Link>
 
         <StatCard
           title="Stok Menipis"
@@ -127,10 +160,10 @@ export default function DashboardPage() {
               <AlertTriangle size={18} />
             </div>
             <div>
-              <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0F172A' }}>
+              <h3 style={{ fontSize: '15.5px', fontWeight: 700, color: '#0F172A' }}>
                 Produk Stok Menipis
               </h3>
-              <p style={{ fontSize: '13px', color: '#64748B' }}>
+              <p style={{ fontSize: '12px', color: '#64748B' }}>
                 Barang dengan jumlah stok di bawah batas minimum
               </p>
             </div>
@@ -142,7 +175,7 @@ export default function DashboardPage() {
               display: 'flex',
               alignItems: 'center',
               gap: '5px',
-              fontSize: '13.5px',
+              fontSize: '13px',
               fontWeight: 600,
               color: '#0F172A',
               transition: 'all var(--transition-fast)'
@@ -177,27 +210,26 @@ export default function DashboardPage() {
                 <tr>
                   <td colSpan={3} style={{ textAlign: 'center', padding: '36px', color: '#059669' }}>
                     <CheckCircle2 size={26} style={{ margin: '0 auto 6px', display: 'block' }} />
-                    <span style={{ fontWeight: 600, fontSize: '13.5px' }}>Semua stok dalam batas aman.</span>
+                    <span style={{ fontWeight: 600, fontSize: '13px' }}>Semua stok dalam batas aman.</span>
                   </td>
                 </tr>
               ) : (
                 stats.low_stock_products.map((item) => (
                   <tr key={item.id}>
                     <td>
-                      <div style={{ fontWeight: 600, color: '#0F172A', fontSize: '14.5px' }}>
+                      <div style={{ fontWeight: 600, color: '#0F172A', fontSize: '13.5px' }}>
                         {item.name}
                       </div>
-                      <div style={{ fontSize: '13px', color: '#64748B', marginTop: '2px' }}>
-                        Batas minimum: {item.stock_minimum} {item.unit}
-                        {item.qty_per_karton ? ` · ${item.qty_per_karton} ${item.unit}/karton` : ''}
+                      <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>
+                        Batas minimum: {item.stock_minimum} pcs
                       </div>
                     </td>
                     <td>
                       <span
                         style={{
-                          fontSize: '12.5px',
+                          fontSize: '11.5px',
                           fontWeight: 500,
-                          padding: '3px 10px',
+                          padding: '3px 8px',
                           borderRadius: 'var(--radius-sm)',
                           background: '#F1F5F9',
                           border: '1px solid #E2E8F0',
@@ -209,7 +241,7 @@ export default function DashboardPage() {
                     </td>
                     <td style={{ textAlign: 'right' }}>
                       <Badge type="warning">
-                        {item.stock_current} {item.unit}
+                        {item.stock_current} pcs
                       </Badge>
                     </td>
                   </tr>
