@@ -8,6 +8,7 @@ import { DEFAULT_CATEGORY, KeluarPerHariRow, OpnameDetail, OpnameItemJenis, Opna
 import { formatDateOnly, formatDateTime } from '@/lib/export-utils';
 import { isCountStale, relativeDayLabel } from '@/lib/stock-labels';
 import { AlertCircle, ClipboardCheck, Eye, Filter, Info, RefreshCw, RotateCcw, TrendingDown } from 'lucide-react';
+import { getClientCache, setClientCache } from '@/lib/client-cache';
 
 type Tab = 'sesi' | 'keluar';
 
@@ -18,13 +19,19 @@ const JENIS_BADGE: Record<OpnameItemJenis, { type: BadgeType; label: string }> =
 };
 
 const labelStyle: React.CSSProperties = {
-  display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', fontWeight: 600, color: '#334155', marginBottom: '6px'
+  display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13.5px', fontWeight: 600, color: '#1E293B', marginBottom: '8px'
 };
 
 export default function OpnamePage() {
-  const [sessions, setSessions] = useState<OpnameSession[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [sessions, setSessions] = useState<OpnameSession[]>(() => {
+    return getClientCache<OpnameSession[]>('opname:sessions') || [];
+  });
+  const [products, setProducts] = useState<Product[]>(() => {
+    return getClientCache<Product[]>('products:all') || [];
+  });
+  const [isLoading, setIsLoading] = useState(() => {
+    return !getClientCache<OpnameSession[]>('opname:sessions');
+  });
   const [loadError, setLoadError] = useState('');
 
   const [startDate, setStartDate] = useState('');
@@ -49,7 +56,8 @@ export default function OpnamePage() {
   const [detailError, setDetailError] = useState('');
 
   const fetchSessions = async () => {
-    setIsLoading(true);
+    const isDefault = !startDate && !endDate && productId === 'all';
+    if (sessions.length === 0) setIsLoading(true);
     setLoadError('');
     try {
       const params = new URLSearchParams();
@@ -64,6 +72,7 @@ export default function OpnamePage() {
         return;
       }
       setSessions(data);
+      if (isDefault) setClientCache('opname:sessions', data);
     } catch {
       setLoadError('Terjadi kesalahan pada server');
     } finally {
