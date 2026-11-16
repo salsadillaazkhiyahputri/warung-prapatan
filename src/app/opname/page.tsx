@@ -286,3 +286,85 @@ export default function OpnamePage() {
 
       </>)}
 
+      {tab === 'keluar' && (<>
+      <div className="card" style={{ marginBottom: '22px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', alignItems: 'end' }}>
+          <div>
+            <label className="form-label" style={labelStyle}>Dari Tanggal</label>
+            <input type="date" className="form-input" style={{ height: '38px', fontSize: '13px' }}
+              value={kStart || keluarRange?.startDate || ''} max={kEnd || undefined} onChange={(e) => setKStart(e.target.value)} />
+          </div>
+          <div>
+            <label className="form-label" style={labelStyle}>Sampai Tanggal</label>
+            <input type="date" className="form-input" style={{ height: '38px', fontSize: '13px' }}
+              value={kEnd || keluarRange?.endDate || ''} min={kStart || undefined} onChange={(e) => setKEnd(e.target.value)} />
+          </div>
+          <div>
+            <label className="form-label" style={labelStyle}>Kategori</label>
+            <select className="form-select" style={{ height: '38px', fontSize: '13px' }} value={kCategory} onChange={(e) => setKCategory(e.target.value)}>
+              <option value="Semua">Semua Kategori</option>
+              {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button onClick={fetchKeluar} className="btn btn-secondary btn-sm" style={{ height: '38px' }}>
+              <RefreshCw size={14} className={isKeluarLoading ? 'pulse' : ''} />
+              <span>Segarkan</span>
+            </button>
+            {(kStart || kEnd || kCategory !== 'Semua') && (
+              <button onClick={() => { setKStart(''); setKEnd(''); setKCategory('Semua'); }} className="btn btn-secondary btn-sm" style={{ height: '38px' }}>
+                <RotateCcw size={12} />
+                <span>Reset</span>
+              </button>
+            )}
+          </div>
+        </div>
+        <p style={{ fontSize: '12px', color: '#64748B', margin: '12px 0 0' }}>
+          {keluarRange ? `${formatDateOnly(keluarRange.startDate)} – ${formatDateOnly(keluarRange.endDate)}` : '30 hari terakhir'}
+          {' · '}rata-rata = total keluar ÷ total hari antar hitungan. Hitung pertama (baseline) tidak dihitung.
+        </p>
+      </div>
+
+      <div className="table-container">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Produk</th>
+              <th>Kategori</th>
+              <th style={{ textAlign: 'right' }}>Rata / hari</th>
+              <th style={{ textAlign: 'right' }}>Total keluar</th>
+              <th style={{ textAlign: 'right' }}>Jumlah hari</th>
+              <th>Terakhir dihitung</th>
+            </tr>
+          </thead>
+          <tbody>
+            {isKeluarLoading && keluarRows.length === 0 ? (
+              <tr><td colSpan={6} style={{ textAlign: 'center', padding: '32px', color: '#94A3B8' }}>Menghitung...</td></tr>
+            ) : keluarError ? (
+              <tr><td colSpan={6} style={{ textAlign: 'center', padding: '32px', color: '#DC2626' }}>{keluarError}</td></tr>
+            ) : keluarRows.length === 0 ? (
+              <tr>
+                <td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>
+                  <TrendingDown size={30} style={{ color: '#94A3B8', margin: '0 auto 8px', display: 'block' }} />
+                  Belum ada data opname pada rentang ini.
+                </td>
+              </tr>
+            ) : keluarRows.map((r) => (
+              <tr key={r.product_id}>
+                <td style={{ fontWeight: 600, color: '#0F172A', fontSize: '13px' }}>{r.product_name}</td>
+                <td style={{ fontSize: '13px', color: '#475569' }}>{r.category ?? '-'}</td>
+                <td style={{ textAlign: 'right', fontSize: '13.5px', fontWeight: 700, color: '#0F172A' }}>
+                  {r.rata_per_hari.toLocaleString('id-ID', { maximumFractionDigits: 1 })} pcs
+                </td>
+                <td style={{ textAlign: 'right', fontSize: '13px' }}>{r.total_keluar.toLocaleString('id-ID')} pcs</td>
+                <td style={{ textAlign: 'right', fontSize: '13px', color: '#475569' }}>{r.total_hari}</td>
+                <td style={{ fontSize: '13px', color: isCountStale(r.terakhir_dihitung) ? '#DC2626' : '#475569' }}>
+                  {relativeDayLabel(r.terakhir_dihitung)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      </>)}
+
