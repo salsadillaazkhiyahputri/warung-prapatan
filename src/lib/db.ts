@@ -134,11 +134,21 @@ function normalizeJenis(v: unknown): SupplierJenis | null {
 export const AuthService = {
   async login(username: string, passwordPlain: string): Promise<User | null> {
     const db = getSupabaseAdmin();
-    const { data: user } = await db
+    const cleanUser = username.trim().toLowerCase();
+    
+    // Mendukung 'pemilik' maupun 'pemilik_staging' di staging database
+    let query = db
       .from('users')
-      .select('id, username, password, telegram_chat_id, created_at')
-      .eq('username', username)
-      .maybeSingle();
+      .select('id, username, password, telegram_chat_id, created_at');
+    
+    if (cleanUser === 'pemilik') {
+      query = query.in('username', ['pemilik', 'pemilik_staging']);
+    } else {
+      query = query.eq('username', username.trim());
+    }
+
+    const { data: users } = await query;
+    const user = users?.[0];
 
     const ok = await bcrypt.compare(passwordPlain, user?.password || DUMMY_HASH);
     if (!user || !user.password || !ok) return null;
