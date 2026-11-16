@@ -10,7 +10,6 @@ import { formatDateOnly } from '@/lib/export-utils';
 import { otherSuppliersLabel } from '@/lib/product-suppliers';
 import { BASE_CATEGORIES, CATEGORY_MAX_LENGTH, normalizeCategory } from '@/lib/categories';
 
-const CATEGORY_LIST_ID = 'kategori-saran';
 import {
   Plus,
   Search,
@@ -67,6 +66,7 @@ export default function ProdukPage() {
 
   // Form states
   const [formData, setFormData] = useState(EMPTY_FORM);
+  const [isCustomCategory, setIsCustomCategory] = useState(false);
   // Saran kategori di form (daftar tetap + kategori yang pernah dipakai) dan kategori untuk filter
   // (hanya yang dipakai produk aktif). Daftar tetap jadi nilai awal agar saran tidak pernah kosong.
   const [categories, setCategories] = useState<string[]>([...BASE_CATEGORIES]);
@@ -104,18 +104,80 @@ export default function ProdukPage() {
 
   const renderCategoryInput = () => (
     <div className="form-group">
-      <label className="form-label">Kategori *</label>
-      <input
-        type="text"
-        className="form-input"
-        list={CATEGORY_LIST_ID}
-        value={formData.category}
-        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-        placeholder="Pilih atau ketik kategori"
-        maxLength={CATEGORY_MAX_LENGTH + 10}
-        autoComplete="off"
-        required
-      />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+        <label className="form-label" style={{ margin: 0 }}>Kategori *</label>
+        {!isCustomCategory ? (
+          <button
+            type="button"
+            onClick={() => {
+              setIsCustomCategory(true);
+              setFormData((prev) => ({ ...prev, category: '' }));
+            }}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#2563EB',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              padding: 0
+            }}
+          >
+            + Ketik Kategori Baru
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              setIsCustomCategory(false);
+              setFormData((prev) => ({ ...prev, category: categories[0] || DEFAULT_CATEGORY }));
+            }}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#64748B',
+              fontSize: '12px',
+              fontWeight: 500,
+              cursor: 'pointer',
+              padding: 0
+            }}
+          >
+            ← Pilih dari daftar
+          </button>
+        )}
+      </div>
+
+      {!isCustomCategory ? (
+        <select
+          className="form-select"
+          value={categories.includes(formData.category) ? formData.category : DEFAULT_CATEGORY}
+          onChange={(e) => {
+            if (e.target.value === '__NEW__') {
+              setIsCustomCategory(true);
+              setFormData((prev) => ({ ...prev, category: '' }));
+            } else {
+              setFormData((prev) => ({ ...prev, category: e.target.value }));
+            }
+          }}
+          required
+        >
+          {categories.map((c) => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+          <option value="__NEW__">+ Ketik Kategori Baru...</option>
+        </select>
+      ) : (
+        <input
+          type="text"
+          className="form-input"
+          value={formData.category}
+          onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+          placeholder="Ketik nama kategori baru..."
+          maxLength={CATEGORY_MAX_LENGTH + 10}
+          autoFocus
+          required
+        />
+      )}
       {categoryHint && (
         <p style={{ fontSize: '12px', color: '#64748B', margin: '4px 0 0' }}>{categoryHint}</p>
       )}
@@ -176,6 +238,7 @@ export default function ProdukPage() {
   // 1. Tambah Produk
   const openAddModal = () => {
     setFormData(EMPTY_FORM);
+    setIsCustomCategory(false);
     setFormError('');
     setIsAddModalOpen(true);
   };
@@ -226,6 +289,8 @@ export default function ProdukPage() {
       stock_current: product.stock_current,
       stock_minimum: product.stock_minimum
     });
+    const inList = categories.some((c) => c.toLowerCase() === (product.category || '').toLowerCase());
+    setIsCustomCategory(!inList && !!product.category);
     setFormError('');
     setIsEditModalOpen(true);
   };
@@ -455,8 +520,21 @@ export default function ProdukPage() {
                         )}
                       </div>
                     </td>
-                    <td style={{ color: '#334155', fontSize: '13px' }}>
-                      {item.category}
+                    <td>
+                      <span
+                        style={{
+                          display: 'inline-block',
+                          padding: '3px 10px',
+                          borderRadius: 'var(--radius-full)',
+                          background: '#F1F5F9',
+                          border: '1px solid #E2E8F0',
+                          fontSize: '12px',
+                          fontWeight: 500,
+                          color: '#334155'
+                        }}
+                      >
+                        {item.category}
+                      </span>
                     </td>
                     <td style={{ fontSize: '13px' }}>
                       {item.last_supplier_name ? (
@@ -553,12 +631,6 @@ export default function ProdukPage() {
         </table>
       </div>
 
-      {/* Saran kategori untuk form Tambah dan Ubah (input + datalist) */}
-      <datalist id={CATEGORY_LIST_ID}>
-        {categories.map((c) => (
-          <option key={c} value={c} />
-        ))}
-      </datalist>
 
       {/* MODAL 1: Tambah Produk */}
       <Modal
