@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
@@ -81,27 +81,32 @@ export default function ProdukPage() {
     return getClientCache<string[]>('products:categories:used') || [];
   });
 
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       const [sugRes, usedRes] = await Promise.all([
         fetch('/api/products/categories'),
         fetch('/api/products/categories?scope=used')
       ]);
-      if (sugRes.ok) setCategories(await sugRes.json());
+      if (sugRes.ok) {
+        const catData = await sugRes.json();
+        setCategories(catData);
+        setClientCache('products:categories', catData);
+      }
       if (usedRes.ok) {
         const used: string[] = await usedRes.json();
         setUsedCategories(used);
+        setClientCache('products:categories:used', used);
         // Kategori terpilih tidak punya produk lagi -> kembali ke "Semua".
         setSelectedCategory((cur) => (cur === 'Semua' || used.includes(cur) ? cur : 'Semua'));
       }
     } catch (err) {
       console.error('Error fetching categories:', err);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchCategories();
-  }, []);
+  }, [fetchCategories]);
 
   // Pratinjau perapian kategori (aturan yang sama dengan server).
   const categoryCheck = normalizeCategory(formData.category, categories);
@@ -184,8 +189,8 @@ export default function ProdukPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
-  const fetchProducts = async () => {
-    if (products.length === 0) setIsLoading(true);
+  const fetchProducts = useCallback(async (silent = false) => {
+    if (!silent && products.length === 0) setIsLoading(true);
     try {
       let url = '/api/products';
       const params = new URLSearchParams();
@@ -204,13 +209,27 @@ export default function ProdukPage() {
     } catch (err) {
       console.error('Error fetching products:', err);
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
-  };
+  }, [products.length, searchQuery, selectedCategory]);
 
   useEffect(() => {
-    fetchProducts();
-  }, [selectedCategory]);
+    fetchProducts(true);
+
+    // Auto-refresh di latar belakang setiap 25 detik & saat tab browser kembali aktif
+    const interval = setInterval(() => {
+      fetchProducts(true);
+    }, 25000);
+    const handleFocus = () => {
+      fetchProducts(true);
+      fetchCategories();
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [fetchProducts, fetchCategories]);
 
   const needsReviewCount = products.filter((p) => p.needs_review).length;
   const visibleProducts = onlyNeedsReview ? products.filter((p) => p.needs_review) : products;
@@ -478,16 +497,7 @@ export default function ProdukPage() {
         </div>
 
         {/* Action Buttons */}
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button
-            onClick={fetchProducts}
-            className="btn btn-secondary btn-sm"
-            title="Segarkan Data"
-          >
-            <RefreshCw size={14} className={isLoading ? 'pulse' : ''} />
-            <span>Segarkan</span>
-          </button>
-
+        <div>
           <button onClick={openAddModal} className="btn btn-primary btn-sm">
             <Plus size={15} />
             <span>Tambah produk</span>
