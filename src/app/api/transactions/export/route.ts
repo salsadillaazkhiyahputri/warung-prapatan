@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, unauthorized } from '@/lib/auth';
 import { TransactionService } from '@/lib/db';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatDateTime } from '@/lib/export-utils';
@@ -21,38 +21,191 @@ export async function GET(req: NextRequest) {
 
     const stamp = new Date().toISOString().split('T')[0];
 
-    // 1. Ekspor Format EXCEL (.xlsx)
+    // 1. Ekspor Format EXCEL (.xlsx) dengan Template Modern & Berwarna (ExcelJS)
     if (format === 'excel' || format === 'xlsx') {
-      const rows = transactions.map((t, index) => ({
-        'No': index + 1,
-        'Tanggal & Waktu': formatDateTime(t.created_at),
-        'Nama Produk': t.product?.name || `Produk #${t.product_id}`,
-        'Kategori': t.product?.category || '-',
-        'Jenis Transaksi': kindLabel(t),
-        'Jumlah (pcs)': `${t.type === 'in' ? '+' : '-'}${t.qty} ${t.product?.unit || 'pcs'}`,
-        'Supplier': t.type === 'in' ? (t.supplier?.name || '-') : '—',
-        'Catatan': t.note || '-'
-      }));
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = 'Warung Prapatan';
+      workbook.created = new Date();
 
-      const worksheet = XLSX.utils.json_to_sheet(rows);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Riwayat Transaksi');
+      const worksheet = workbook.addWorksheet('Riwayat Transaksi', {
+        views: [{ showGridLines: true }],
+        pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
+      });
 
-      worksheet['!cols'] = [
-        { wch: 6 },
-        { wch: 22 },
-        { wch: 26 },
-        { wch: 15 },
-        { wch: 18 },
-        { wch: 14 },
-        { wch: 22 },
-        { wch: 28 }
+      // Kolom
+      worksheet.columns = [
+        { key: 'no', width: 7 },
+        { key: 'date', width: 22 },
+        { key: 'product', width: 28 },
+        { key: 'category', width: 16 },
+        { key: 'kind', width: 20 },
+        { key: 'qty', width: 16 },
+        { key: 'supplier', width: 24 },
+        { key: 'note', width: 32 }
       ];
 
-      const buf = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+      // Row 1: Brand Title (Deep Navy)
+      worksheet.mergeCells('A1:H1');
+      const r1 = worksheet.getCell('A1');
+      r1.value = 'WARUNG PRAPATAN';
+      r1.font = { name: 'Calibri', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
+      r1.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } };
+      r1.alignment = { vertical: 'middle', horizontal: 'center' };
+      worksheet.getRow(1).height = 34;
+
+      // Row 2: Subtitle
+      worksheet.mergeCells('A2:H2');
+      const r2 = worksheet.getCell('A2');
+      r2.value = 'LAPORAN RIWAYAT TRANSAKSI STOK (MASUK, KELUAR, KOREKSI)';
+      r2.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FF38BDF8' } };
+      r2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+      r2.alignment = { vertical: 'middle', horizontal: 'center' };
+      worksheet.getRow(2).height = 24;
+
+      // Row 3: Meta Info
+      worksheet.mergeCells('A3:H3');
+      const r3 = worksheet.getCell('A3');
+      const countMasuk = transactions.filter((t) => t.type === 'in').length;
+      const countKeluar = transactions.filter((t) => t.type === 'out').length;
+      r3.value = `Dicetak pada: ${formatDateTime(new Date().toISOString())}   |   Total: ${transactions.length} Transaksi (Masuk: ${countMasuk}, Keluar: ${countKeluar})`;
+      r3.font = { name: 'Calibri', size: 9.5, italic: true, color: { argb: 'FF475569' } };
+      r3.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+      r3.alignment = { vertical: 'middle', horizontal: 'center' };
+      r3.border = { bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } } };
+      worksheet.getRow(3).height = 22;
+
+      // Row 4: Spacer
+      worksheet.getRow(4).height = 10;
+
+      // Row 5: Table Headers
+      const headers = ['NO', 'TANGGAL & WAKTU', 'NAMA PRODUK', 'KATEGORI', 'JENIS TRANSAKSI', 'JUMLAH (PCS)', 'SUPPLIER', 'CATATAN'];
+      const headerRow = worksheet.getRow(5);
+      headerRow.height = 26;
+      headers.forEach((h, idx) => {
+        const cell = headerRow.getCell(idx + 1);
+        cell.value = h;
+        cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FF334155' } },
+          bottom: { style: 'medium', color: { argb: 'FF0F172A' } },
+          left: { style: 'thin', color: { argb: 'FF334155' } },
+          right: { style: 'thin', color: { argb: 'FF334155' } }
+        };
+      });
+
+      const thinBorder = {
+        top: { style: 'thin' as const, color: { argb: 'FFE2E8F0' } },
+        bottom: { style: 'thin' as const, color: { argb: 'FFE2E8F0' } },
+        left: { style: 'thin' as const, color: { argb: 'FFE2E8F0' } },
+        right: { style: 'thin' as const, color: { argb: 'FFE2E8F0' } }
+      };
+
+      transactions.forEach((t, i) => {
+        const row = worksheet.getRow(6 + i);
+        row.height = 22;
+        const isEven = i % 2 === 0;
+        const baseBg = isEven ? 'FFFFFFFF' : 'FFF8FAFC';
+        const isIn = t.type === 'in';
+        const label = kindLabel(t);
+
+        // No
+        const c1 = row.getCell(1);
+        c1.value = i + 1;
+        c1.alignment = { vertical: 'middle', horizontal: 'center' };
+        c1.font = { name: 'Calibri', size: 9.5, color: { argb: 'FF64748B' } };
+        c1.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: baseBg } };
+        c1.border = thinBorder;
+
+        // Tanggal
+        const c2 = row.getCell(2);
+        c2.value = formatDateTime(t.created_at);
+        c2.alignment = { vertical: 'middle', horizontal: 'center' };
+        c2.font = { name: 'Calibri', size: 9.5, color: { argb: 'FF334155' } };
+        c2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: baseBg } };
+        c2.border = thinBorder;
+
+        // Nama Produk
+        const c3 = row.getCell(3);
+        c3.value = t.product?.name || `Produk #${t.product_id}`;
+        c3.alignment = { vertical: 'middle', horizontal: 'left' };
+        c3.font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FF0F172A' } };
+        c3.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: baseBg } };
+        c3.border = thinBorder;
+
+        // Kategori
+        const c4 = row.getCell(4);
+        c4.value = t.product?.category || '-';
+        c4.alignment = { vertical: 'middle', horizontal: 'center' };
+        c4.font = { name: 'Calibri', size: 9.5, color: { argb: 'FF475569' } };
+        c4.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: baseBg } };
+        c4.border = thinBorder;
+
+        // Jenis Transaksi
+        const c5 = row.getCell(5);
+        c5.value = label;
+        c5.alignment = { vertical: 'middle', horizontal: 'center' };
+        c5.font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: isIn ? 'FF065F46' : 'FF991B1B' } };
+        c5.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isIn ? 'FFECFDF5' : 'FFFEF2F2' } };
+        c5.border = thinBorder;
+
+        // Jumlah
+        const c6 = row.getCell(6);
+        c6.value = `${isIn ? '+' : '-'}${t.qty} ${t.product?.unit || 'pcs'}`;
+        c6.alignment = { vertical: 'middle', horizontal: 'center' };
+        c6.font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: isIn ? 'FF059669' : 'FFDC2626' } };
+        c6.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: baseBg } };
+        c6.border = thinBorder;
+
+        // Supplier
+        const c7 = row.getCell(7);
+        c7.value = isIn ? (t.supplier?.name || '-') : '—';
+        c7.alignment = { vertical: 'middle', horizontal: 'left' };
+        c7.font = { name: 'Calibri', size: 9.5, color: { argb: 'FF1E293B' } };
+        c7.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: baseBg } };
+        c7.border = thinBorder;
+
+        // Catatan
+        const c8 = row.getCell(8);
+        c8.value = t.note || '-';
+        c8.alignment = { vertical: 'middle', horizontal: 'left' };
+        c8.font = { name: 'Calibri', size: 9.5, color: { argb: 'FF64748B' } };
+        c8.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: baseBg } };
+        c8.border = thinBorder;
+      });
+
+      // Footer Row
+      const endRow = 6 + transactions.length;
+      const footerRow = worksheet.getRow(endRow);
+      footerRow.height = 24;
+
+      worksheet.mergeCells(`A${endRow}:D${endRow}`);
+      const fTitle = worksheet.getCell(`A${endRow}`);
+      fTitle.value = 'TOTAL KESELURUHAN CATATAN:';
+      fTitle.font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FF0F172A' } };
+      fTitle.alignment = { vertical: 'middle', horizontal: 'right' };
+      fTitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+      fTitle.border = {
+        top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+        bottom: { style: 'double', color: { argb: 'FF0F172A' } }
+      };
+
+      worksheet.mergeCells(`E${endRow}:H${endRow}`);
+      const fVal = worksheet.getCell(`E${endRow}`);
+      fVal.value = `${transactions.length} Aktivitas Transaksi (${countMasuk} Masuk, ${countKeluar} Keluar)`;
+      fVal.font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FF0F172A' } };
+      fVal.alignment = { vertical: 'middle', horizontal: 'left' };
+      fVal.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+      fVal.border = {
+        top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+        bottom: { style: 'double', color: { argb: 'FF0F172A' } }
+      };
+
+      const buffer = await workbook.xlsx.writeBuffer();
       const filename = `Laporan-Transaksi-Warung-Prapatan-${stamp}.xlsx`;
 
-      return new NextResponse(buf, {
+      return new NextResponse(Buffer.from(buffer), {
         status: 200,
         headers: {
           'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
