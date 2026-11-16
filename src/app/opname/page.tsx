@@ -135,3 +135,102 @@ export default function OpnamePage() {
       setIsDetailLoading(false);
     }
   };
+
+  const hasFilter = startDate || endDate || productId !== 'all';
+  const selectedProductId = productId !== 'all' ? Number(productId) : null;
+
+  return (
+    <DashboardLayout
+      title="Stok Opname"
+      subtitle="Riwayat hitung fisik stok. Barang keluar dihitung dari selisih stok sistem dan hitungan."
+    >
+      <div className="info-callout">
+        <Info size={17} style={{ color: '#0F172A', flexShrink: 0 }} />
+        <span>
+          Opname dicatat lewat Telegram. Halaman ini hanya menampilkan riwayat dan tidak bisa menambah atau mengubah opname.
+        </span>
+      </div>
+
+      <div role="tablist" style={{ display: 'flex', gap: '4px', borderBottom: '1px solid #E2E8F0', marginBottom: '18px' }}>
+        {([['sesi', 'Riwayat sesi'], ['keluar', 'Rata-rata keluar per hari']] as [Tab, string][]).map(([key, label]) => (
+          <button
+            key={key}
+            role="tab"
+            aria-selected={tab === key}
+            onClick={() => setTab(key)}
+            style={{
+              padding: '9px 14px',
+              fontSize: '13px',
+              fontWeight: tab === key ? 700 : 500,
+              color: tab === key ? '#0F172A' : '#64748B',
+              background: 'transparent',
+              border: 'none',
+              borderBottom: `2px solid ${tab === key ? '#0F172A' : 'transparent'}`,
+              marginBottom: '-1px',
+              cursor: 'pointer'
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'sesi' && (<>
+      <div className="page-header-box" style={{ marginBottom: '18px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div
+            style={{
+              padding: '6px 14px', borderRadius: 'var(--radius-full)', background: '#FFFFFF',
+              border: '1px solid #E2E8F0', fontSize: '12.5px', fontWeight: 600, color: '#0F172A', boxShadow: 'var(--shadow-xs)'
+            }}
+          >
+            Total <strong>{sessions.length}</strong> Sesi Opname
+          </div>
+          <button onClick={fetchSessions} className="btn btn-secondary btn-sm" title="Segarkan Data">
+            <RefreshCw size={14} className={isLoading ? 'pulse' : ''} />
+            <span>Segarkan</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: '22px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Filter size={15} style={{ color: '#0F172A' }} />
+            <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', margin: 0 }}>Filter Opname</h4>
+          </div>
+          {hasFilter && (
+            <button
+              onClick={() => { setStartDate(''); setEndDate(''); setProductId('all'); }}
+              className="btn btn-secondary btn-sm"
+              style={{ height: '30px', fontSize: '12px', padding: '0 12px' }}
+            >
+              <RotateCcw size={12} />
+              <span>Reset Filter</span>
+            </button>
+          )}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+          <div>
+            <label className="form-label" style={labelStyle}>Dari Tanggal</label>
+            <input type="date" className="form-input" style={{ height: '38px', fontSize: '13px' }}
+              value={startDate} max={endDate || undefined} onChange={(e) => setStartDate(e.target.value)} />
+          </div>
+          <div>
+            <label className="form-label" style={labelStyle}>Sampai Tanggal</label>
+            <input type="date" className="form-input" style={{ height: '38px', fontSize: '13px' }}
+              value={endDate} min={startDate || undefined} onChange={(e) => setEndDate(e.target.value)} />
+          </div>
+          <div>
+            <label className="form-label" style={labelStyle}>Produk</label>
+            <select className="form-select" style={{ height: '38px', fontSize: '13px' }}
+              value={productId} onChange={(e) => setProductId(e.target.value)}>
+              <option value="all">Semua Produk</option>
+              {products.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
