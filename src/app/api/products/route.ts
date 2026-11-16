@@ -1,51 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getCurrentUser, unauthorized } from '@/lib/auth';
 import { ProductService } from '@/lib/db';
+import { errorResponse } from '@/lib/errors';
+import { readJson, cleanText, parseInteger, parseCategory } from '@/lib/validate';
 
 export async function GET(req: NextRequest) {
+  if (!(await getCurrentUser())) return unauthorized();
   try {
     const { searchParams } = new URL(req.url);
-    const q = searchParams.get('q') || undefined;
-    const category = searchParams.get('category') || undefined;
+    const q = cleanText(searchParams.get('q'), { field: 'Kata kunci', max: 100 }) ?? undefined;
+    const rawCategory = cleanText(searchParams.get('category'), { field: 'Kategori', max: 50 });
+    const category = rawCategory && rawCategory !== 'Semua' ? rawCategory : undefined;
 
-    const products = await ProductService.getAll(q, category);
+    // Produk + supplier terakhir digabung di server (view hanya bisa dibaca service_role).
+    const products = await ProductService.getCatalog(q, category);
     return NextResponse.json(products);
   } catch (error) {
-    console.error('Error fetching products:', error);
-    return NextResponse.json({ error: 'Gagal mengambil data produk' }, { status: 500 });
+    return errorResponse(error, 'Gagal mengambil data produk');
   }
 }
 
 export async function POST(req: NextRequest) {
+  if (!(await getCurrentUser())) return unauthorized();
   try {
-    const body = await req.json();
-    const { name, category, unit, qty_per_karton, stock_current, stock_minimum } = body;
+    const body = await readJson(req);
+    const name = cleanText(body.name, { field: 'Nama produk', required: true, max: 100 })!;
+    const category = parseCategory(body.category, await ProductService.getCategorySuggestions());
+    const stock_current = parseInteger(body.stock_current, { field: 'Stok awal', min: 0, max: 1_000_000 }) ?? 0;
+    const stock_minimum = parseInteger(body.stock_minimum, { field: 'Batas stok menipis', min: 0, max: 1_000_000 }) ?? 10;
 
-    if (!name || !name.trim()) {
-      return NextResponse.json({ error: 'Nama produk wajib diisi' }, { status: 400 });
-    }
-    if (!category || !category.trim()) {
-      return NextResponse.json({ error: 'Kategori produk wajib diisi' }, { status: 400 });
-    }
-    if (stock_minimum !== undefined && (!Number.isInteger(Number(stock_minimum)) || Number(stock_minimum) < 0)) {
-      return NextResponse.json({ error: 'Batas stok menipis harus berupa angka bulat minimal 0' }, { status: 400 });
-    }
-    if (qty_per_karton !== null && qty_per_karton !== undefined &&
-      (!Number.isInteger(Number(qty_per_karton)) || Number(qty_per_karton) < 1)) {
-      return NextResponse.json({ error: 'Isi per karton harus berupa angka bulat minimal 1 atau dikosongkan' }, { status: 400 });
-    }
-
-    const newProduct = await ProductService.create({
-      name: name.trim(),
-      category: category.trim(),
-      unit: unit?.trim() || 'pcs',
-      qty_per_karton: qty_per_karton ? Number(qty_per_karton) : null,
-      stock_current: Math.max(0, Number(stock_current) || 0),
-      stock_minimum: Number(stock_minimum ?? 10)
-    });
-
+    const newProduct = await ProductService.create({ name, category, stock_current, stock_minimum });
     return NextResponse.json(newProduct, { status: 201 });
   } catch (error) {
-    console.error('Error creating product:', error);
-    return NextResponse.json({ error: 'Gagal menambahkan produk' }, { status: 500 });
+    return errorResponse(error, 'Gagal menambahkan produk');
   }
 }
