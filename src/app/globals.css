@@ -442,6 +442,32 @@ input, select, textarea {
   border: 1px solid var(--badge-neutral-border);
 }
 
+/* Koreksi stok (penyesuaian) */
+.badge-koreksi {
+  background: #FFFBEB;
+  color: #B45309;
+  border: 1px solid #FDE68A;
+}
+
+/* Jenis supplier - Selaras dengan Card Ringkasan */
+.badge-utama {
+  background: #EFF6FF;
+  color: #1D4ED8;
+  border: 1px solid #BFDBFE;
+}
+
+.badge-cadangan {
+  background: #FFF7ED;
+  color: #C2410C;
+  border: 1px solid #FED7AA;
+}
+
+.badge-grosir {
+  background: #FAF5FF;
+  color: #7E22CE;
+  border: 1px solid #E9D5FF;
+}
+
 /* Info Callout */
 .info-callout {
   display: flex;
