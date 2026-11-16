@@ -131,6 +131,8 @@ function normalizeJenis(v: unknown): SupplierJenis | null {
 // ============================================================================
 // AUTH
 // ============================================================================
+const userCache = new Map<string, { user: User; expires: number }>();
+
 export const AuthService = {
   async login(username: string, passwordPlain: string): Promise<User | null> {
     const db = getSupabaseAdmin();
@@ -158,12 +160,22 @@ export const AuthService = {
   },
 
   async getUserById(id: string): Promise<User | null> {
+    const cached = userCache.get(id);
+    if (cached && cached.expires > Date.now()) {
+      return cached.user;
+    }
+
     const { data } = await getSupabaseAdmin()
       .from('users')
       .select('id, username, telegram_chat_id, created_at')
       .eq('id', id)
       .maybeSingle();
-    return (data as User) ?? null;
+
+    const user = (data as User) ?? null;
+    if (user) {
+      userCache.set(id, { user, expires: Date.now() + 60000 });
+    }
+    return user;
   }
 };
 

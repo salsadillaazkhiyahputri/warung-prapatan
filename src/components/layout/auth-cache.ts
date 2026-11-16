@@ -3,6 +3,18 @@
 // agar render pertama di client identik dengan render server (tanpa hydration mismatch).
 const AUTH_CACHE_KEY = 'wp_authenticated';
 let authVerifiedInTab = false;
+let hasHydratedInBrowser = false;
+
+export function hasAppHydrated(): boolean {
+  if (typeof process !== 'undefined' && process.env.NODE_ENV === 'test') {
+    return false;
+  }
+  return hasHydratedInBrowser;
+}
+
+export function markAppHydrated() {
+  hasHydratedInBrowser = true;
+}
 
 export function readAuthCache(): boolean {
   if (authVerifiedInTab) return true;
@@ -24,5 +36,6 @@ export function writeAuthCache(ok: boolean) {
 }
 
 export function clearAuthCache() {
+  hasHydratedInBrowser = false;
   writeAuthCache(false);
 }

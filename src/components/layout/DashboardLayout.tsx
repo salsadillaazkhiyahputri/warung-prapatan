@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
-import { readAuthCache, writeAuthCache } from './auth-cache';
+import { readAuthCache, writeAuthCache, hasAppHydrated, markAppHydrated } from './auth-cache';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -18,11 +18,18 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   subtitle
 }) => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  // Selalu mulai dari "memeriksa" di server maupun client.
-  const [isAuthReady, setIsAuthReady] = useState(false);
+  // Selalu mulai dari spinner saat hidrasi pertama, tetapi saat navigasi antar-halaman (SPA),
+  // langsung true jika tab sudah terverifikasi sehingga perpindahan menu instan tanpa kedipan!
+  const [isAuthReady, setIsAuthReady] = useState(() => {
+    if (typeof window !== 'undefined' && hasAppHydrated() && readAuthCache()) {
+      return true;
+    }
+    return false;
+  });
   const router = useRouter();
 
   useEffect(() => {
+    markAppHydrated();
     let cancelled = false;
 
     // Sudah terverifikasi di tab ini: tampilkan isi segera, verifikasi ulang di latar belakang.
