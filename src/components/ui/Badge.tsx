@@ -9,11 +9,12 @@ interface BadgeProps {
   children: React.ReactNode;
   className?: string;
   title?: string;
+  style?: React.CSSProperties;
 }
 
-export const Badge: React.FC<BadgeProps> = ({ type, children, className = '', title }) => {
+export const Badge: React.FC<BadgeProps> = ({ type, children, className = '', title, style }) => {
   return (
-    <span className={`badge badge-${type} ${className}`} title={title}>
+    <span className={`badge badge-${type} ${className}`} title={title} style={style}>
       {children}
     </span>
   );
