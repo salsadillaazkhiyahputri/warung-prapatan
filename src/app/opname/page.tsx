@@ -94,3 +94,44 @@ export default function OpnamePage() {
       setIsKeluarLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetch('/api/products')
+      .then((r) => (r.ok ? r.json() : []))
+      .then(setProducts)
+      .catch(() => setProducts([]));
+    fetch('/api/products/categories')
+      .then((r) => (r.ok ? r.json() : [DEFAULT_CATEGORY]))
+      .then(setCategories)
+      .catch(() => setCategories([DEFAULT_CATEGORY]));
+  }, []);
+
+  useEffect(() => {
+    if (tab === 'keluar') fetchKeluar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, kStart, kEnd, kCategory]);
+
+  useEffect(() => {
+    fetchSessions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startDate, endDate, productId]);
+
+  const openDetail = async (id: number) => {
+    setIsDetailOpen(true);
+    setIsDetailLoading(true);
+    setDetail(null);
+    setDetailError('');
+    try {
+      const res = await fetch(`/api/opname/${id}`);
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setDetailError(data?.error || 'Gagal memuat detail opname');
+        return;
+      }
+      setDetail(data);
+    } catch {
+      setDetailError('Terjadi kesalahan pada server');
+    } finally {
+      setIsDetailLoading(false);
+    }
+  };
