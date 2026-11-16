@@ -368,3 +368,70 @@ export default function OpnamePage() {
       </div>
       </>)}
 
+      <Modal
+        isOpen={isDetailOpen}
+        onClose={() => setIsDetailOpen(false)}
+        title={detail ? `Detail Opname · ${formatDateTime(detail.created_at)}` : 'Detail Opname'}
+        maxWidth="820px"
+      >
+        {isDetailLoading ? (
+          <p style={{ textAlign: 'center', color: '#94A3B8', fontSize: '13px', padding: '20px 0' }}>Memuat detail...</p>
+        ) : detailError ? (
+          <p style={{ textAlign: 'center', color: '#DC2626', fontSize: '13px', padding: '20px 0' }}>{detailError}</p>
+        ) : detail ? (
+          <>
+            <p style={{ fontSize: '13px', color: '#64748B', marginBottom: '14px' }}>
+              Dicatat oleh <strong style={{ color: '#0F172A' }}>{detail.username ?? '-'}</strong> · {detail.item_count} produk
+              {detail.note ? ` · ${detail.note}` : ''}
+            </p>
+            <div className="table-container">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Produk</th>
+                    <th style={{ textAlign: 'right' }}>Stok sistem</th>
+                    <th style={{ textAlign: 'right' }}>Hitungan</th>
+                    <th style={{ textAlign: 'right' }}>Keluar</th>
+                    <th style={{ textAlign: 'right' }}>Keluar / hari</th>
+                    <th>Jenis</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {detail.items.length === 0 ? (
+                    <tr><td colSpan={6} style={{ textAlign: 'center', padding: '24px', color: '#64748B' }}>Sesi ini tidak punya item.</td></tr>
+                  ) : detail.items.map((it) => {
+                    const badge = JENIS_BADGE[it.jenis];
+                    const highlight = selectedProductId === it.product_id;
+                    return (
+                      <tr key={it.id} style={highlight ? { background: '#F8FAFC' } : undefined}>
+                        <td>
+                          <div style={{ fontWeight: 600, color: '#0F172A', fontSize: '13px' }}>{it.product_name}</div>
+                          {it.category && <div style={{ fontSize: '11.5px', color: '#64748B' }}>{it.category}</div>}
+                        </td>
+                        <td style={{ textAlign: 'right', fontSize: '13px' }}>{it.stok_sistem} pcs</td>
+                        <td style={{ textAlign: 'right', fontSize: '13px', fontWeight: 600 }}>{it.hitungan} pcs</td>
+                        <td style={{ textAlign: 'right', fontSize: '13px', color: it.keluar > 0 ? '#DC2626' : '#475569' }}>
+                          {it.keluar} pcs
+                          {it.koreksi !== 0 && (
+                            <div style={{ fontSize: '11.5px', color: '#B45309' }}>koreksi {it.koreksi > 0 ? '+' : ''}{it.koreksi}</div>
+                          )}
+                        </td>
+                        <td style={{ textAlign: 'right', fontSize: '13px', color: '#475569' }}>
+                          {it.keluar_per_hari !== null ? `${it.keluar_per_hari.toLocaleString('id-ID')} pcs` : '-'}
+                          {it.hari ? <div style={{ fontSize: '11.5px', color: '#94A3B8' }}>{it.hari} hari</div> : null}
+                        </td>
+                        <td><Badge type={badge.type}>{badge.label}</Badge></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        ) : null}
+      </Modal>
+    </DashboardLayout>
+  );
+}
+
+
