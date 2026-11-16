@@ -117,57 +117,63 @@ export default function ProdukPage() {
     : '';
 
   const renderCategoryInput = () => (
-    <div className="form-group">
-      <label className="form-label">Kategori *</label>
+    <div className="form-group" style={{ marginBottom: '16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+        <label className="form-label" style={{ margin: 0, fontWeight: 600, color: '#1E293B', fontSize: '13.5px' }}>
+          Kategori *
+        </label>
+        <button
+          type="button"
+          onClick={() => {
+            const nextMode = !isCustomCategory;
+            setIsCustomCategory(nextMode);
+            if (nextMode) {
+              setFormData((prev) => ({ ...prev, category: '' }));
+            } else {
+              setFormData((prev) => ({ ...prev, category: categories[0] || DEFAULT_CATEGORY }));
+            }
+          }}
+          style={{
+            fontSize: '12px',
+            fontWeight: 600,
+            color: isCustomCategory ? '#475569' : '#0F172A',
+            background: '#F1F5F9',
+            border: '1px solid #CBD5E1',
+            padding: '3px 10px',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease'
+          }}
+        >
+          {isCustomCategory ? '← Pilih dari Daftar' : '+ Tambah Kategori Baru'}
+        </button>
+      </div>
 
       {!isCustomCategory ? (
         <select
           className="form-select"
           value={categories.includes(formData.category) ? formData.category : DEFAULT_CATEGORY}
-          onChange={(e) => {
-            if (e.target.value === '__NEW__') {
-              setIsCustomCategory(true);
-              setFormData((prev) => ({ ...prev, category: '' }));
-            } else {
-              setFormData((prev) => ({ ...prev, category: e.target.value }));
-            }
-          }}
-          style={{ height: '42px', fontSize: '14px', borderRadius: '8px' }}
+          onChange={(e) => setFormData((prev) => ({ ...prev, category: e.target.value }))}
+          style={{ height: '42px', fontSize: '14px', borderRadius: '8px', background: '#FFFFFF' }}
           required
         >
           {categories.map((c) => (
             <option key={c} value={c}>{c}</option>
           ))}
-          <option disabled>──────────</option>
-          <option value="__NEW__">➕ Tambah Kategori Baru...</option>
         </select>
       ) : (
         <div>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <input
-              type="text"
-              className="form-input"
-              value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              placeholder="Ketik nama kategori baru..."
-              maxLength={CATEGORY_MAX_LENGTH + 10}
-              autoFocus
-              style={{ height: '42px', fontSize: '14px', borderRadius: '8px' }}
-              required
-            />
-            <button
-              type="button"
-              onClick={() => {
-                setIsCustomCategory(false);
-                setFormData((prev) => ({ ...prev, category: categories[0] || DEFAULT_CATEGORY }));
-              }}
-              className="btn btn-secondary"
-              style={{ height: '42px', padding: '0 14px', fontSize: '13px', borderRadius: '8px' }}
-              title="Kembali ke pilihan daftar"
-            >
-              Batal
-            </button>
-          </div>
+          <input
+            type="text"
+            className="form-input"
+            value={formData.category}
+            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+            placeholder="Ketik nama kategori baru..."
+            maxLength={CATEGORY_MAX_LENGTH + 10}
+            autoFocus
+            style={{ height: '42px', fontSize: '14px', borderRadius: '8px', background: '#FFFFFF' }}
+            required
+          />
         </div>
       )}
       {categoryHint && (
@@ -209,12 +215,12 @@ export default function ProdukPage() {
     } catch (err) {
       console.error('Error fetching products:', err);
     } finally {
-      if (!silent) setIsLoading(false);
+      setIsLoading(false);
     }
-  }, [products.length, searchQuery, selectedCategory]);
+  }, [searchQuery, selectedCategory]);
 
   useEffect(() => {
-    fetchProducts(true);
+    fetchProducts(products.length > 0);
 
     // Auto-refresh di latar belakang setiap 25 detik & saat tab browser kembali aktif
     const interval = setInterval(() => {
@@ -519,7 +525,7 @@ export default function ProdukPage() {
             </tr>
           </thead>
           <tbody>
-            {isLoading ? (
+            {isLoading && visibleProducts.length === 0 ? (
               <tr>
                 <td colSpan={6} style={{ textAlign: 'center', padding: '36px', color: '#94A3B8' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
@@ -573,26 +579,52 @@ export default function ProdukPage() {
                     </td>
                     <td style={{ fontSize: '13px' }}>
                       {item.last_supplier_name ? (
-                        <>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', color: '#0F172A', fontWeight: 500 }}>
-                            <span>{item.last_supplier_name}</span>
+                        <div>
+                          <div style={{ color: '#0F172A', fontWeight: 600, fontSize: '13.5px' }}>
+                            {item.last_supplier_name}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px', flexWrap: 'wrap' }}>
+                            {item.last_in_at && (
+                              <span style={{ fontSize: '12px', color: '#64748B' }}>
+                                {formatDateOnly(item.last_in_at)}
+                              </span>
+                            )}
                             {item.last_supplier_active === false && (
-                              <Badge type="neutral" title="Supplier ini sedang nonaktif">Nonaktif</Badge>
+                              <span
+                                title="Supplier ini sedang dinonaktifkan"
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  fontSize: '10.5px',
+                                  fontWeight: 700,
+                                  color: '#DC2626',
+                                  background: '#FEF2F2',
+                                  border: '1px solid #FECACA',
+                                  padding: '1px 6px',
+                                  borderRadius: '4px',
+                                  lineHeight: 1.2
+                                }}
+                              >
+                                Nonaktif
+                              </span>
                             )}
                             {otherSuppliersLabel(item.supplier_count ?? 1) && (
-                              <span title={(item.supplier_names ?? []).join(', ')} style={{ cursor: 'help' }}>
-                                <Badge type="neutral" title={(item.supplier_names ?? []).join(', ')}>
-                                  {otherSuppliersLabel(item.supplier_count ?? 1)}
-                                </Badge>
+                              <span
+                                title={(item.supplier_names ?? []).join(', ')}
+                                style={{
+                                  fontSize: '10.5px',
+                                  color: '#475569',
+                                  background: '#F1F5F9',
+                                  padding: '1px 6px',
+                                  borderRadius: '4px',
+                                  cursor: 'help'
+                                }}
+                              >
+                                {otherSuppliersLabel(item.supplier_count ?? 1)}
                               </span>
                             )}
                           </div>
-                          {item.last_in_at && (
-                            <div style={{ fontSize: '11.5px', color: '#94A3B8', marginTop: '2px' }}>
-                              {formatDateOnly(item.last_in_at)}
-                            </div>
-                          )}
-                        </>
+                        </div>
                       ) : (
                         <span style={{ color: '#94A3B8' }} title="Belum pernah ada stok masuk">-</span>
                       )}
@@ -672,7 +704,7 @@ export default function ProdukPage() {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         title="Tambah Produk Baru"
-        maxWidth="500px"
+        maxWidth="520px"
       >
         <form onSubmit={handleAddSubmit}>
           {formError && (
@@ -708,9 +740,9 @@ export default function ProdukPage() {
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-            {renderCategoryInput()}
+          {renderCategoryInput()}
 
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '8px' }}>
             <div className="form-group">
               <label className="form-label">Stok Awal (pcs)</label>
               <input
@@ -722,19 +754,19 @@ export default function ProdukPage() {
                 style={{ height: '42px', fontSize: '14px', borderRadius: '8px' }}
               />
             </div>
-          </div>
 
-          <div className="form-group">
-            <label className="form-label">Batas Minimum Stok (pcs) *</label>
-            <input
-              type="number"
-              min={0}
-              className="form-input"
-              value={formData.stock_minimum}
-              onChange={(e) => setFormData({ ...formData, stock_minimum: parseInt(e.target.value, 10) || 0 })}
-              style={{ height: '42px', fontSize: '14px', borderRadius: '8px' }}
-              required
-            />
+            <div className="form-group">
+              <label className="form-label">Batas Minimum Stok (pcs) *</label>
+              <input
+                type="number"
+                min={0}
+                className="form-input"
+                value={formData.stock_minimum}
+                onChange={(e) => setFormData({ ...formData, stock_minimum: parseInt(e.target.value, 10) || 0 })}
+                style={{ height: '42px', fontSize: '14px', borderRadius: '8px' }}
+                required
+              />
+            </div>
           </div>
 
           <div
@@ -772,7 +804,7 @@ export default function ProdukPage() {
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         title="Ubah Data Produk"
-        maxWidth="500px"
+        maxWidth="520px"
       >
         <form onSubmit={handleEditSubmit}>
           {selectedProduct?.needs_review && (
@@ -811,8 +843,21 @@ export default function ProdukPage() {
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-            {renderCategoryInput()}
+          {renderCategoryInput()}
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '8px' }}>
+            <div className="form-group">
+              <label className="form-label">Batas Minimum Stok (pcs) *</label>
+              <input
+                type="number"
+                min={0}
+                className="form-input"
+                value={formData.stock_minimum}
+                onChange={(e) => setFormData({ ...formData, stock_minimum: parseInt(e.target.value, 10) || 0 })}
+                style={{ height: '42px', fontSize: '14px', borderRadius: '8px' }}
+                required
+              />
+            </div>
 
             <div className="form-group">
               <label className="form-label">Stok Saat Ini (pcs)</label>
@@ -825,24 +870,11 @@ export default function ProdukPage() {
                 title="Stok hanya berubah lewat transaksi atau stok opname"
                 style={{ height: '42px', fontSize: '14px', borderRadius: '8px', background: '#F1F5F9', color: '#64748B', cursor: 'not-allowed' }}
               />
-              <p style={{ fontSize: '12px', color: '#64748B', margin: '4px 0 0' }}>
-                Stok diubah lewat Riwayat &rarr; Catat Manual atau stok opname di Telegram.
-              </p>
             </div>
           </div>
-
-          <div className="form-group">
-            <label className="form-label">Batas Minimum Stok (pcs) *</label>
-            <input
-              type="number"
-              min={0}
-              className="form-input"
-              value={formData.stock_minimum}
-              onChange={(e) => setFormData({ ...formData, stock_minimum: parseInt(e.target.value, 10) || 0 })}
-              style={{ height: '42px', fontSize: '14px', borderRadius: '8px' }}
-              required
-            />
-          </div>
+          <p style={{ fontSize: '12px', color: '#64748B', margin: '0 0 16px' }}>
+            * Stok saat ini diubah lewat menu Riwayat Transaksi atau stok opname Telegram.
+          </p>
 
           <div
             style={{
