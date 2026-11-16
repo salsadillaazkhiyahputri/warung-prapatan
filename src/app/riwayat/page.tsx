@@ -98,7 +98,7 @@ export default function RiwayatPage() {
 
   const fetchTransactions = useCallback(async (silent = false) => {
     const isDefault = !startDate && !endDate && selectedProductId === 'all' && selectedKind === 'all';
-    if (!silent && transactions.length === 0) setIsLoading(true);
+    if (!silent) setIsLoading(true);
     try {
       const params = new URLSearchParams();
       if (startDate) params.append('startDate', startDate);
@@ -117,9 +117,9 @@ export default function RiwayatPage() {
     } catch (err) {
       console.error('Error fetching transactions:', err);
     } finally {
-      if (!silent) setIsLoading(false);
+      setIsLoading(false);
     }
-  }, [startDate, endDate, selectedProductId, selectedKind, transactions.length]);
+  }, [startDate, endDate, selectedProductId, selectedKind]);
 
   useEffect(() => {
     fetchProducts();
@@ -127,7 +127,7 @@ export default function RiwayatPage() {
   }, []);
 
   useEffect(() => {
-    fetchTransactions(true);
+    fetchTransactions(transactions.length > 0);
 
     // Auto-refresh setiap 25 detik & saat tab browser kembali aktif
     const interval = setInterval(() => {
@@ -583,7 +583,7 @@ export default function RiwayatPage() {
             </tr>
           </thead>
           <tbody>
-            {isLoading ? (
+            {isLoading && transactions.length === 0 ? (
               <tr>
                 <td colSpan={5} style={{ textAlign: 'center', padding: '36px', color: '#94A3B8' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
