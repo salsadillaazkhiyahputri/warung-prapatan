@@ -1,56 +1,47 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getCurrentUser, unauthorized } from '@/lib/auth';
 import { ProductService } from '@/lib/db';
+import { errorResponse } from '@/lib/errors';
+import { readJson, cleanText, parseInteger, parseCategory, requiredId } from '@/lib/validate';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
 export async function PUT(req: NextRequest, context: RouteContext) {
+  if (!(await getCurrentUser())) return unauthorized();
   try {
-    const { id } = await context.params;
-    const productId = parseInt(id, 10);
-    if (isNaN(productId)) {
-      return NextResponse.json({ error: 'ID produk tidak valid' }, { status: 400 });
+    const productId = requiredId((await context.params).id, 'ID produk');
+    const body = await readJson(req);
+
+    // Hanya nama, kategori, dan batas minimum yang bisa diubah. Stok, satuan, dan isi karton diabaikan.
+    const patch: { name?: string; category?: string; stock_minimum?: number } = {};
+    if (body.name !== undefined) patch.name = cleanText(body.name, { field: 'Nama produk', required: true, max: 100 })!;
+    if (body.category !== undefined) patch.category = parseCategory(body.category, await ProductService.getCategorySuggestions());
+    if (body.stock_minimum !== undefined) {
+      patch.stock_minimum = parseInteger(body.stock_minimum, { field: 'Batas stok menipis', required: true, min: 0, max: 1_000_000 });
     }
 
-    const body = await req.json();
-    if (body.stock_minimum !== undefined &&
-      (!Number.isInteger(Number(body.stock_minimum)) || Number(body.stock_minimum) < 0)) {
-      return NextResponse.json({ error: 'Batas stok menipis harus berupa angka bulat minimal 0' }, { status: 400 });
-    }
-    if (body.qty_per_karton !== null && body.qty_per_karton !== undefined &&
-      (!Number.isInteger(Number(body.qty_per_karton)) || Number(body.qty_per_karton) < 1)) {
-      return NextResponse.json({ error: 'Isi per karton harus berupa angka bulat minimal 1 atau dikosongkan' }, { status: 400 });
-    }
-
-    const updated = await ProductService.update(productId, body);
+    const updated = await ProductService.update(productId, patch);
     if (!updated) {
       return NextResponse.json({ error: 'Produk tidak ditemukan' }, { status: 404 });
     }
-
     return NextResponse.json(updated);
   } catch (error) {
-    console.error('Error updating product:', error);
-    return NextResponse.json({ error: 'Gagal memperbarui produk' }, { status: 500 });
+    return errorResponse(error, 'Gagal memperbarui produk');
   }
 }
 
-export async function DELETE(req: NextRequest, context: RouteContext) {
+export async function DELETE(_req: NextRequest, context: RouteContext) {
+  if (!(await getCurrentUser())) return unauthorized();
   try {
-    const { id } = await context.params;
-    const productId = parseInt(id, 10);
-    if (isNaN(productId)) {
-      return NextResponse.json({ error: 'ID produk tidak valid' }, { status: 400 });
-    }
-
+    const productId = requiredId((await context.params).id, 'ID produk');
     const success = await ProductService.delete(productId);
     if (!success) {
       return NextResponse.json({ error: 'Produk tidak ditemukan' }, { status: 404 });
     }
-
     return NextResponse.json({ success: true, message: 'Produk berhasil dihapus' });
   } catch (error) {
-    console.error('Error deleting product:', error);
-    return NextResponse.json({ error: 'Gagal menghapus produk' }, { status: 500 });
+    return errorResponse(error, 'Gagal menghapus produk');
   }
 }

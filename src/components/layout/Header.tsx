@@ -21,8 +21,9 @@ export const Header: React.FC<HeaderProps> = ({
       new Intl.DateTimeFormat('id-ID', {
         weekday: 'long',
         day: 'numeric',
-        month: 'long',
-        year: 'numeric'
+        month: 'short',
+        year: 'numeric',
+        timeZone: 'Asia/Jakarta'
       }).format(new Date())
     );
   }, []);
@@ -33,12 +34,13 @@ export const Header: React.FC<HeaderProps> = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '16px 32px',
+        padding: '16px 36px',
         borderBottom: '1px solid #E2E8F0',
         background: '#FFFFFF',
         position: 'sticky',
         top: 0,
-        zIndex: 30
+        zIndex: 30,
+        boxShadow: '0 1px 2px 0 rgba(15, 23, 42, 0.03)'
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
@@ -46,7 +48,7 @@ export const Header: React.FC<HeaderProps> = ({
           onClick={onToggleMobileMenu}
           style={{
             display: 'none',
-            color: '#1E2C3A',
+            color: '#0F172A',
             padding: '7px',
             borderRadius: 'var(--radius-sm)',
             border: '1px solid #E2E8F0',
@@ -59,34 +61,35 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
 
         <div>
-          <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#1E2C3A', lineHeight: 1.25, letterSpacing: '-0.01em' }}>
+          <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#0F172A', lineHeight: 1.25, letterSpacing: '-0.025em' }}>
             {title}
           </h2>
           {subtitle && (
-            <p style={{ fontSize: '12.5px', color: '#64748B', marginTop: '2px' }}>
+            <p style={{ fontSize: '13.5px', color: '#64748B', marginTop: '3px', fontWeight: 400, lineHeight: 1.4 }}>
               {subtitle}
             </p>
           )}
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: '7px',
             padding: '6px 14px',
-            borderRadius: 'var(--radius-sm)',
+            borderRadius: 'var(--radius-full)',
             background: '#F8FAFC',
             border: '1px solid #E2E8F0',
             fontSize: '12.5px',
             fontWeight: 500,
             color: '#475569'
           }}
+          className="date-pill"
         >
-          <Calendar size={14} style={{ color: '#64748B' }} />
-          <span>{todayFormatted || 'Senin, 26 Oktober 2026'}</span>
+          <Calendar size={13} style={{ color: '#64748B' }} />
+          <span>{todayFormatted || ' '}</span>
         </div>
       </div>
     </header>

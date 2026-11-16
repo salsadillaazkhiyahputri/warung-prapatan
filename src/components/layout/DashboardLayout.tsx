@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
+import { readAuthCache, writeAuthCache, hasAppHydrated, markAppHydrated } from './auth-cache';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -17,57 +18,42 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   subtitle
 }) => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+  // Selalu mulai dari spinner saat hidrasi pertama, tetapi saat navigasi antar-halaman (SPA),
+  // langsung true jika tab sudah terverifikasi sehingga perpindahan menu instan tanpa kedipan!
+  const [isAuthReady, setIsAuthReady] = useState(() => {
+    if (typeof window !== 'undefined' && hasAppHydrated() && readAuthCache()) {
+      return true;
+    }
+    return false;
+  });
   const router = useRouter();
 
   useEffect(() => {
-    // Verifikasi autentikasi pengguna
-    fetch('/api/auth/me')
-      .then(res => {
-        if (!res.ok) {
-          router.push('/login');
-        } else {
-          setIsLoadingAuth(false);
-        }
-      })
-      .catch(() => {
-        router.push('/login');
-      });
-  }, [router]);
+    markAppHydrated();
+    let cancelled = false;
 
-  if (isLoadingAuth) {
-    return (
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '100vh',
-          background: 'var(--bg-main)',
-          color: 'var(--text-secondary)',
-          gap: '16px'
-        }}
-      >
-        <div
-          style={{
-            width: '40px',
-            height: '40px',
-            borderRadius: '50%',
-            border: '3px solid var(--border-light)',
-            borderTopColor: 'var(--primary)',
-            animation: 'spin 0.8s linear infinite'
-          }}
-        />
-        <p style={{ fontSize: '14px' }}>Memuat sistem Warung Prapatan...</p>
-        <style jsx>{`
-          @keyframes spin {
-            to { transform: rotate(360deg); }
-          }
-        `}</style>
-      </div>
-    );
-  }
+    // Sudah terverifikasi di tab ini: tampilkan isi segera, verifikasi ulang di latar belakang.
+    if (readAuthCache()) setIsAuthReady(true);
+
+    const fail = () => {
+      if (cancelled) return;
+      writeAuthCache(false);
+      router.push('/login');
+    };
+
+    fetch('/api/auth/me', { cache: 'no-store' })
+      .then((res) => {
+        if (cancelled) return;
+        if (!res.ok) return fail();
+        writeAuthCache(true);
+        setIsAuthReady(true);
+      })
+      .catch(fail);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
   return (
     <div className="app-container">
@@ -83,9 +69,37 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           subtitle={subtitle}
         />
 
-        <main className="page-wrapper animate-fade-in">
-          {children}
-        </main>
+        {isAuthReady ? (
+          <main className="page-wrapper animate-fade-in">
+            {children}
+          </main>
+        ) : (
+          <main className="page-wrapper" aria-busy="true">
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: '50vh',
+                color: '#64748B',
+                gap: '14px'
+              }}
+            >
+              <div
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  border: '2.5px solid #E2E8F0',
+                  borderTopColor: '#0F172A',
+                  animation: 'spin 0.7s linear infinite'
+                }}
+              />
+              <p style={{ fontSize: '13px', fontWeight: 500 }}>Memuat Warung Prapatan...</p>
+            </div>
+          </main>
+        )}
       </div>
 
       <style jsx global>{`

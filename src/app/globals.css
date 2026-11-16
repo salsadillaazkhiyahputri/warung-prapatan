@@ -1,59 +1,56 @@
 /* ==============================================================================
    DESIGN SYSTEM - WARUNG PRAPATAN (CAPSTONE 2)
-   SOLID DEEP NAVY THEME (Clean, Modern, Solid SaaS Dashboard - No Glassmorphism)
-   Palette:
-     - Deep Navy: #1E2C3A (Primary Navy)
-     - Navy Medium: #2A3B4C (Secondary / Hover)
-     - Navy Light Accent: #3E546B
-     - Canvas Background: #F4F6F9 (Clean, eye-friendly light slate)
-     - Solid Surfaces: #FFFFFF
-     - Subtle Borders: #E2E8F0
-     - Text Primary: #0F172A
-     - Text Secondary: #475569
-     - Text Muted: #94A3B8
+   MODERN DEEP NAVY SAAS THEME (Clean, Sleek, Premium SaaS Dashboard)
    ============================================================================== */
 
 :root {
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 
-  /* Solid Deep Navy Brand Tokens */
-  --navy-deep: #1E2C3A;
-  --navy-subtle: #2A3B4C;
-  --navy-active: #243545;
-  --navy-accent: #3E546B;
+  /* Modern Deep Navy Palette */
+  --navy-950: #0B131F;
+  --navy-900: #0F172A; /* Primary Deep Navy */
+  --navy-800: #1E293B;
+  --navy-700: #334155;
+  --navy-600: #475569;
+  --navy-500: #64748B;
+  --navy-400: #94A3B8;
+  --navy-300: #CBD5E1;
+  --navy-200: #E2E8F0;
+  --navy-100: #F1F5F9;
+  --navy-50:  #F8FAFC;
 
-  /* Surfaces & Backgrounds */
-  --bg-main: #F4F6F9;
+  /* Surfaces & Canvas */
+  --bg-main: #F8FAFC;
   --bg-surface: #FFFFFF;
   --bg-surface-elevated: #F8FAFC;
   --bg-surface-hover: #F1F5F9;
   --bg-input: #FFFFFF;
 
-  /* Solid Borders */
-  --border-subtle: #EDF2F7;
+  /* Borders */
+  --border-subtle: #F1F5F9;
   --border-light: #E2E8F0;
-  --border-input: #CBD5E1;
-  --border-focus: #1E2C3A;
+  --border-input: #D1D5DB;
+  --border-focus: #0F172A;
 
   /* Primary Button & Actions */
-  --primary: #1E2C3A;
-  --primary-hover: #2A3B4C;
-  --primary-active: #15202B;
+  --primary: #0F172A;
+  --primary-hover: #1E293B;
+  --primary-active: #090E17;
 
   /* Semantic Badge Tokens */
-  --badge-in-text: #15803D;
-  --badge-in-bg: #DCFCE7;
-  --badge-in-border: #BBF7D0;
+  --badge-in-text: #059669;
+  --badge-in-bg: #ECFDF5;
+  --badge-in-border: #A7F3D0;
 
-  --badge-out-text: #B91C1C;
-  --badge-out-bg: #FEE2E2;
+  --badge-out-text: #DC2626;
+  --badge-out-bg: #FEF2F2;
   --badge-out-border: #FECACA;
 
-  --badge-warning-text: #B91C1C;
+  --badge-warning-text: #DC2626;
   --badge-warning-bg: #FEF2F2;
   --badge-warning-border: #FECACA;
 
-  --badge-neutral-text: #334155;
+  --badge-neutral-text: #475569;
   --badge-neutral-bg: #F1F5F9;
   --badge-neutral-border: #E2E8F0;
 
@@ -62,20 +59,23 @@
   --text-secondary: #475569;
   --text-muted: #94A3B8;
 
-  /* Solid Shadows */
-  --shadow-sm: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
-  --shadow-card: 0 1px 3px 0 rgba(15, 23, 42, 0.07), 0 1px 2px -1px rgba(15, 23, 42, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.07), 0 2px 4px -2px rgba(15, 23, 42, 0.05);
-  --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.04);
-  --shadow-modal: 0 20px 25px -5px rgba(15, 23, 42, 0.15), 0 8px 10px -6px rgba(15, 23, 42, 0.1);
+  /* Shadows - Modern SaaS Clean Depth */
+  --shadow-xs: 0 1px 2px 0 rgba(15, 23, 42, 0.04);
+  --shadow-sm: 0 1px 3px 0 rgba(15, 23, 42, 0.06), 0 1px 2px -1px rgba(15, 23, 42, 0.04);
+  --shadow-card: 0 1px 3px 0 rgba(15, 23, 42, 0.05), 0 1px 2px -1px rgba(15, 23, 42, 0.03);
+  --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.07), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.03);
+  --shadow-modal: 0 20px 25px -5px rgba(15, 23, 42, 0.12), 0 8px 10px -6px rgba(15, 23, 42, 0.06);
 
+  --radius-xs: 4px;
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
+  --radius-xl: 18px;
   --radius-full: 9999px;
 
-  --transition-fast: 0.15s ease;
-  --transition-normal: 0.22s ease;
+  --transition-fast: 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-normal: 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 * {
@@ -89,7 +89,7 @@ html, body {
   background-color: var(--bg-main);
   color: var(--text-primary);
   font-family: var(--font-sans);
-  font-size: 14.5px;
+  font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
@@ -113,11 +113,11 @@ input, select, textarea {
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #E2E8F0;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
   background: #CBD5E1;
@@ -142,16 +142,46 @@ input, select, textarea {
 }
 
 .page-wrapper {
-  padding: 28px 32px;
-  max-width: 1360px;
+  padding: 28px 36px 48px;
   width: 100%;
-  margin: 0 auto;
 }
 
 @media (max-width: 768px) {
   .page-wrapper {
-    padding: 18px 16px;
+    padding: 16px 14px;
   }
+}
+
+/* Interactive Export Option Cards */
+.export-option-card {
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.export-option-card:hover {
+  transform: translateY(-1.5px);
+  box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.08);
+}
+.export-option-excel:hover {
+  border-color: #10B981 !important;
+  background: #F0FDF4 !important;
+}
+.export-option-excel:hover .export-btn-arrow {
+  background: #059669 !important;
+  color: #FFFFFF !important;
+  border-color: #059669 !important;
+}
+.export-option-pdf:hover {
+  border-color: #EF4444 !important;
+  background: #FFF1F2 !important;
+}
+.export-option-pdf:hover .export-btn-arrow {
+  background: #DC2626 !important;
+  color: #FFFFFF !important;
+  border-color: #DC2626 !important;
+}
+
+.export-dropdown-item:hover {
+  background: #F1F5F9 !important;
 }
 
 /* Page Header & Typography */
@@ -167,18 +197,18 @@ input, select, textarea {
 .page-title {
   font-size: 20px;
   font-weight: 700;
-  letter-spacing: -0.015em;
-  color: var(--navy-deep);
+  letter-spacing: -0.02em;
+  color: var(--navy-900);
 }
 
 .page-subtitle {
-  font-size: 13px;
+  font-size: 13.5px;
   color: var(--text-secondary);
-  margin-top: 3px;
+  margin-top: 2px;
   line-height: 1.4;
 }
 
-/* Solid Buttons */
+/* Buttons */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -196,28 +226,32 @@ input, select, textarea {
 }
 
 .btn-primary {
-  background: var(--navy-deep);
+  background: var(--navy-900);
   color: #FFFFFF;
-  border: 1px solid var(--navy-deep);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+  border: 1px solid var(--navy-900);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.1);
 }
 .btn-primary:hover {
-  background: var(--navy-subtle);
-  border-color: var(--navy-subtle);
+  background: var(--navy-800);
+  border-color: var(--navy-800);
+  transform: translateY(-0.5px);
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.15);
 }
 .btn-primary:active {
-  background: var(--navy-active);
+  background: var(--navy-950);
+  transform: translateY(0);
 }
 
 .btn-secondary {
   background: #FFFFFF;
-  color: var(--navy-deep);
+  color: var(--navy-900);
   border: 1px solid var(--border-light);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-xs);
 }
 .btn-secondary:hover {
   background: #F8FAFC;
   border-color: #CBD5E1;
+  color: var(--navy-950);
 }
 
 .btn-danger {
@@ -232,9 +266,9 @@ input, select, textarea {
 }
 
 .btn-sm {
-  padding: 6px 12px;
+  padding: 7px 14px;
   font-size: 13px;
-  height: 34px;
+  height: 36px;
   border-radius: var(--radius-sm);
 }
 
@@ -247,27 +281,28 @@ input, select, textarea {
 }
 
 .form-label {
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--text-primary);
+  letter-spacing: 0.01em;
 }
 
 .form-input, .form-select, .form-textarea {
   width: 100%;
-  padding: 9px 13px;
+  padding: 10px 14px;
   background: #FFFFFF;
   border: 1px solid var(--border-input);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   color: var(--text-primary);
   outline: none;
-  font-size: 13.5px;
+  font-size: 14px;
   transition: all var(--transition-fast);
-  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02);
 }
 
 .form-input:focus, .form-select:focus, .form-textarea:focus {
-  border-color: var(--navy-deep);
-  box-shadow: 0 0 0 3px rgba(30, 44, 58, 0.12);
+  border-color: var(--navy-900);
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.08);
 }
 
 .form-input::placeholder {
@@ -280,21 +315,56 @@ input, select, textarea {
   padding: 8px;
 }
 
-/* Solid Card Component */
+/* Filter Chip Toggle */
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 14px;
+  border-radius: var(--radius-md);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  background: #FFFFFF;
+  color: var(--text-secondary);
+  border: 1.5px solid var(--border-light);
+  box-shadow: var(--shadow-xs);
+  user-select: none;
+}
+.filter-chip:hover {
+  background: #F8FAFC;
+  border-color: #CBD5E1;
+  color: var(--navy-900);
+}
+.filter-chip.active {
+  background: var(--navy-900);
+  color: #FFFFFF;
+  border-color: var(--navy-900);
+}
+.filter-chip.active-warning {
+  background: #FEF2F2;
+  color: #DC2626;
+  border-color: #FCA5A5;
+  box-shadow: 0 1px 3px rgba(220, 38, 38, 0.12);
+}
+
+/* Card Component */
 .card {
   background: #FFFFFF;
   border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
-  padding: 22px;
+  border-radius: var(--radius-lg);
+  padding: 22px 24px;
   box-shadow: var(--shadow-card);
 }
 
-/* Solid Tables */
+/* Tables */
 .table-container {
   background: #FFFFFF;
   border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
-  overflow-x: auto;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
   box-shadow: var(--shadow-card);
 }
 
@@ -306,8 +376,8 @@ input, select, textarea {
 
 .data-table th {
   background: #F8FAFC;
-  padding: 12px 18px;
-  font-size: 12px;
+  padding: 14px 20px;
+  font-size: 12.5px;
   font-weight: 600;
   color: var(--text-secondary);
   text-transform: uppercase;
@@ -317,10 +387,10 @@ input, select, textarea {
 }
 
 .data-table td {
-  padding: 13px 18px;
-  font-size: 13.5px;
+  padding: 15px 20px;
+  font-size: 14px;
   color: var(--text-primary);
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid #F1F5F9;
   vertical-align: middle;
 }
 
@@ -336,13 +406,13 @@ input, select, textarea {
   border-bottom: none;
 }
 
-/* Solid Badges */
+/* Badges */
 .badge {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 3px 10px;
-  font-size: 12px;
+  padding: 4px 10px;
+  font-size: 12.5px;
   font-weight: 600;
   border-radius: var(--radius-full);
   white-space: nowrap;
@@ -372,37 +442,156 @@ input, select, textarea {
   border: 1px solid var(--badge-neutral-border);
 }
 
-/* Clean Note / Tip Box */
+/* Koreksi stok (penyesuaian) */
+.badge-koreksi {
+  background: #FFFBEB;
+  color: #B45309;
+  border: 1px solid #FDE68A;
+}
+
+/* Jenis supplier - Selaras dengan Card Ringkasan */
+.badge-utama {
+  background: #EFF6FF;
+  color: #1D4ED8;
+  border: 1px solid #BFDBFE;
+}
+
+.badge-cadangan {
+  background: #FFF7ED;
+  color: #C2410C;
+  border: 1px solid #FED7AA;
+}
+
+.badge-grosir {
+  background: #FAF5FF;
+  color: #7E22CE;
+  border: 1px solid #E9D5FF;
+}
+
+/* Info Callout */
 .info-callout {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
   padding: 12px 16px;
   background: #F8FAFC;
   border: 1px solid var(--border-light);
-  border-left: 3px solid var(--navy-deep);
-  border-radius: var(--radius-sm);
+  border-left: 3.5px solid var(--navy-900);
+  border-radius: var(--radius-md);
   color: var(--text-secondary);
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.45;
   margin-bottom: 20px;
 }
 
 /* Animations */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
+  from { opacity: 0; transform: translateY(3px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.18s ease-out forwards;
+  animation: fadeIn 0.15s ease-out forwards;
 }
 
 @keyframes pulseSubtle {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.55; }
+  50% { opacity: 0.5; }
 }
 
 .pulse {
   animation: pulseSubtle 1.8s infinite ease-in-out;
+}
+
+/* ==============================================================================
+   MODERN FLOATING CARD LOGIN PAGE (BALANCED & PROPORTIONAL)
+   ============================================================================== */
+.login-page-viewport {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 50% 50%, #1E293B 0%, #0F172A 60%, #0B131F 100%);
+  padding: 36px 20px;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.login-card-balanced {
+  width: 100%;
+  max-width: 1040px;
+  min-height: 570px;
+  background: #FFFFFF;
+  border-radius: 28px;
+  display: flex;
+  overflow: hidden;
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.55), 0 10px 25px -5px rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  position: relative;
+}
+
+.login-banner-left {
+  flex: 0.95;
+  min-height: 570px;
+  position: relative;
+  background: linear-gradient(145deg, #0B131F 0%, #0F172A 55%, #1E293B 100%);
+  padding: 56px 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  text-align: left;
+  overflow: hidden;
+  border-top-right-radius: 120px 240px;
+  border-bottom-right-radius: 120px 240px;
+  z-index: 2;
+}
+
+.login-banner-content {
+  position: relative;
+  z-index: 3;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  margin: 0;
+}
+
+.login-card-right {
+  flex: 1.05;
+  background: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justifyContent: center;
+  padding: 48px 56px;
+  position: relative;
+  overflow: hidden;
+}
+
+.login-card-form {
+  width: 100%;
+  max-width: 390px;
+  position: relative;
+  z-index: 2;
+}
+
+@media (max-width: 860px) {
+  .login-card-balanced {
+    flex-direction: column;
+    max-width: 480px;
+    border-radius: 22px;
+  }
+  .login-banner-left {
+    min-height: auto;
+    padding: 40px 30px 44px;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    border-bottom-left-radius: 40px;
+    border-bottom-right-radius: 40px;
+  }
+  .login-card-right {
+    padding: 36px 28px;
+  }
 }

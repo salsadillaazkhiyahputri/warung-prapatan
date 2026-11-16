@@ -1,81 +1,67 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { TransactionService, ProductService } from '@/lib/db';
-import { getCurrentUser } from '@/lib/auth';
-import { TransactionType } from '@/types';
+import { TransactionService, ProductService, assertSupplierForStockIn } from '@/lib/db';
+import { getCurrentUser, unauthorized } from '@/lib/auth';
+import { errorResponse, BusinessError } from '@/lib/errors';
+import { readJson, cleanText, parseInteger, requiredId, optionalId, parseBoolean, parseHistoryFilters } from '@/lib/validate';
 
 export async function GET(req: NextRequest) {
+  if (!(await getCurrentUser())) return unauthorized();
   try {
-    const { searchParams } = new URL(req.url);
-    const startDate = searchParams.get('startDate') || undefined;
-    const endDate = searchParams.get('endDate') || undefined;
-    const prodIdParam = searchParams.get('productId');
-    const typeParam = searchParams.get('type') as TransactionType | 'all' | null;
-
-    const productId = prodIdParam && prodIdParam !== 'all' ? parseInt(prodIdParam, 10) : undefined;
-    const type = typeParam && typeParam !== 'all' ? typeParam : 'all';
-
-    const transactions = await TransactionService.getHistory({
-      startDate,
-      endDate,
-      productId: isNaN(productId as number) ? undefined : productId,
-      type
-    });
-
+    const filters = parseHistoryFilters(new URL(req.url).searchParams);
+    const transactions = await TransactionService.getHistory(filters);
     return NextResponse.json(transactions);
   } catch (error) {
-    console.error('Error fetching transactions:', error);
-    return NextResponse.json({ error: 'Gagal mengambil riwayat transaksi' }, { status: 500 });
+    return errorResponse(error, 'Gagal mengambil riwayat transaksi');
   }
 }
 
+const NEW_PAIR_MESSAGE = 'Belum pernah masuk dari supplier ini. Lanjutkan?';
+
 export async function POST(req: NextRequest) {
+  const user = await getCurrentUser();
+  if (!user) return unauthorized();
   try {
-    const body = await req.json();
-    const { product_id, type, qty, supplier_id, note } = body;
+    const body = await readJson(req);
+    const type = body.type;
+    if (type !== 'in' && type !== 'out') throw new BusinessError('Tipe transaksi harus "in" atau "out"');
 
-    if (!product_id || !type || !qty) {
-      return NextResponse.json({ error: 'product_id, type, dan qty wajib diisi' }, { status: 400 });
+    const productId = requiredId(body.product_id, 'Produk');
+    const qty = parseInteger(body.qty, { field: 'Jumlah', required: true, min: 1, max: 100_000 });
+    const confirmNewPair = parseBoolean(body.confirm_new_pair);
+    const idempotencyKey = typeof body.idempotency_key === 'string' ? body.idempotency_key : undefined;
+
+    // Keluar manual (barang rusak/hilang) wajib diberi alasan di catatan.
+    const note = type === 'out'
+      ? cleanText(body.note, { field: 'Alasan barang keluar', required: true, min: 3, max: 200 })
+      : cleanText(body.note, { field: 'Catatan', max: 200 });
+
+    const supplierId = type === 'in' ? optionalId(body.supplier_id, 'Supplier') : null;
+    if (type === 'in' && !supplierId) throw new BusinessError('Supplier wajib dipilih untuk transaksi stok masuk');
+
+    const product = await ProductService.getById(productId);
+    if (!product) return NextResponse.json({ error: 'Produk tidak ditemukan' }, { status: 404 });
+
+    // Stok masuk: supplier harus ada, aktif, dan bukan "Koreksi Stok" (database juga menolak, check_violation).
+    if (type === 'in') await assertSupplierForStockIn(supplierId!);
+
+    // Peringatan lunak: kombinasi produk + supplier baru perlu dikonfirmasi. Tidak ada yang disimpan.
+    if (type === 'in' && !confirmNewPair && (await TransactionService.isNewPair(productId, supplierId!))) {
+      return NextResponse.json({ code: 'NEW_PAIR', error: NEW_PAIR_MESSAGE }, { status: 409 });
     }
 
-    if (type !== 'in' && type !== 'out') {
-      return NextResponse.json({ error: 'Tipe transaksi harus "in" atau "out"' }, { status: 400 });
-    }
-
-    const numQty = parseInt(qty, 10);
-    if (isNaN(numQty) || numQty <= 0) {
-      return NextResponse.json({ error: 'Jumlah (qty) harus angka positif' }, { status: 400 });
-    }
-
-    // Aturan bisnis: supplier_id wajib untuk transaksi bertipe masuk ('in')
-    if (type === 'in' && !supplier_id) {
-      return NextResponse.json({ error: 'Supplier wajib dipilih untuk transaksi stok masuk' }, { status: 400 });
-    }
-
-    const product = await ProductService.getById(parseInt(product_id, 10));
-    if (!product) {
-      return NextResponse.json({ error: 'Produk tidak ditemukan' }, { status: 404 });
-    }
-
-    // Aturan bisnis: untuk transaksi keluar, stok harus mencukupi
-    if (type === 'out' && product.stock_current < numQty) {
-      return NextResponse.json({
-        error: `Stok tidak mencukupi. Stok saat ini: ${product.stock_current} ${product.unit}`
-      }, { status: 400 });
-    }
-
-    const user = await getCurrentUser();
+    // Pemeriksaan stok final tetap di database (fungsi RPC mengunci baris).
     const newTrx = await TransactionService.create({
       product_id: product.id,
-      user_id: user?.id,
-      supplier_id: type === 'in' ? parseInt(supplier_id, 10) : null,
+      user_id: user.id,
+      supplier_id: supplierId,
       type,
-      qty: numQty,
-      note: note || null
+      qty,
+      note,
+      idempotency_key: idempotencyKey
     });
 
     return NextResponse.json(newTrx, { status: 201 });
   } catch (error) {
-    console.error('Error creating transaction:', error);
-    return NextResponse.json({ error: 'Gagal membuat transaksi' }, { status: 500 });
+    return errorResponse(error, 'Gagal membuat transaksi');
   }
 }

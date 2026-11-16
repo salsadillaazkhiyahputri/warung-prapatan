@@ -1,27 +1,15 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// Hanya dipakai di server (route API). Kunci service_role TIDAK boleh diberi awalan NEXT_PUBLIC_.
+let admin: SupabaseClient | null = null;
 
-export const isSupabaseConfigured = Boolean(
-  supabaseUrl && 
-  supabaseAnonKey && 
-  supabaseUrl.startsWith('https://') &&
-  !supabaseUrl.includes('your-project')
-);
-
-// Client-side / public Supabase client
-export const supabase = isSupabaseConfigured
-  ? createClient(supabaseUrl!, supabaseAnonKey!)
-  : null;
-
-// Server-side admin Supabase client with service role key if available
-export const supabaseAdmin = isSupabaseConfigured
-  ? createClient(supabaseUrl!, supabaseServiceRoleKey || supabaseAnonKey!, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    })
-  : null;
+export function getSupabaseAdmin(): SupabaseClient {
+  if (admin) return admin;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key || !url.startsWith('https://')) {
+    throw new Error('NEXT_PUBLIC_SUPABASE_URL dan SUPABASE_SERVICE_ROLE_KEY wajib diisi');
+  }
+  admin = createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
+  return admin;
+}

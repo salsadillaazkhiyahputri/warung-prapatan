@@ -1,32 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getCurrentUser, unauthorized } from '@/lib/auth';
 import { SupplierService } from '@/lib/db';
+import { errorResponse } from '@/lib/errors';
+import { readJson, cleanText, parseJenis } from '@/lib/validate';
 
 export async function GET() {
+  if (!(await getCurrentUser())) return unauthorized();
   try {
     const suppliers = await SupplierService.getAll();
     return NextResponse.json(suppliers);
   } catch (error) {
-    console.error('Error fetching suppliers:', error);
-    return NextResponse.json({ error: 'Gagal mengambil data supplier' }, { status: 500 });
+    return errorResponse(error, 'Gagal mengambil data supplier');
   }
 }
 
 export async function POST(req: NextRequest) {
+  if (!(await getCurrentUser())) return unauthorized();
   try {
-    const body = await req.json();
-    const { name } = body;
+    const body = await readJson(req);
+    const name = cleanText(body.name, { field: 'Nama supplier', required: true, max: 100 })!;
+    const jenis = parseJenis(body.jenis); // wajib saat tambah
 
-    if (!name || !name.trim()) {
-      return NextResponse.json({ error: 'Nama supplier wajib diisi' }, { status: 400 });
-    }
-
-    const newSupplier = await SupplierService.create(name.trim());
+    const newSupplier = await SupplierService.create(name, jenis);
     return NextResponse.json(newSupplier, { status: 201 });
-  } catch (error: any) {
-    console.error('Error creating supplier:', error);
-    return NextResponse.json(
-      { error: error.message || 'Gagal menambahkan supplier' },
-      { status: error.message?.includes('sudah terdaftar') ? 400 : 500 }
-    );
+  } catch (error) {
+    return errorResponse(error, 'Gagal menambahkan supplier');
   }
 }

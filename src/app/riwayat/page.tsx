@@ -1,11 +1,13 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
-import { Transaction, Product, TransactionType } from '@/types';
+import { Transaction, Product, Supplier, TransactionType, TransactionKind, SUPPLIER_JENIS } from '@/types';
 import { formatDateTime } from '@/lib/export-utils';
+import { SUPPLIER_JENIS_LABEL, TRANSACTION_KIND_LABEL, TRANSACTION_KINDS } from '@/lib/stock-labels';
+import { getClientCache, setClientCache, invalidateClientCache } from '@/lib/client-cache';
 import {
   Download,
   Calendar,
@@ -21,15 +23,24 @@ import {
 } from 'lucide-react';
 
 export default function RiwayatPage() {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [transactions, setTransactions] = useState<Transaction[]>(() => {
+    return getClientCache<Transaction[]>('transactions:history') || [];
+  });
+  const [products, setProducts] = useState<Product[]>(() => {
+    return getClientCache<Product[]>('products:all') || [];
+  });
+  const [allSuppliers, setAllSuppliers] = useState<Supplier[]>(() => {
+    return getClientCache<Supplier[]>('suppliers:all') || [];
+  });
+  const [isLoading, setIsLoading] = useState(() => {
+    return !getClientCache<Transaction[]>('transactions:history');
+  });
 
   // Filters state
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [selectedProductId, setSelectedProductId] = useState('all');
-  const [selectedType, setSelectedType] = useState<'all' | TransactionType>('all');
+  const [selectedKind, setSelectedKind] = useState<'all' | TransactionKind>('all');
 
   // Export Modal state
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -38,21 +49,46 @@ export default function RiwayatPage() {
 
   // Manual Transaction Modal state
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const [isSavingManual, setIsSavingManual] = useState(false);
+  // Satu kunci unik per pembukaan form: kirim ulang yang sama tidak akan tercatat dua kali.
+  const manualKeyRef = useRef('');
   const [manualForm, setManualForm] = useState({
     product_id: '',
     type: 'in' as TransactionType,
     qty: 1,
-    unit_mode: 'pcs',
-    supplier_name: 'Unilever',
+    supplier_id: '',
     note: ''
   });
   const [manualError, setManualError] = useState('');
+  // Peringatan lunak: produk + supplier yang belum pernah dipakai bersama.
+  const [pairConfirm, setPairConfirm] = useState<{ productName: string; supplierName: string } | null>(null);
+
+  const fetchSuppliers = async () => {
+    try {
+      const res = await fetch('/api/suppliers');
+      if (res.ok) {
+        const data = await res.json();
+        setClientCache('suppliers:all', data);
+        setAllSuppliers(data);
+      }
+    } catch (err) {
+      console.error('Error fetching suppliers:', err);
+    }
+  };
+
+  // Hanya supplier AKTIF non-sistem, dikelompokkan per jenis. "Koreksi Stok" tidak ditawarkan:
+  // database menolak stok masuk manual ke supplier itu (check_violation), begitu juga supplier nonaktif.
+  const supplierGroups = SUPPLIER_JENIS.map((jenis) => ({
+    jenis,
+    items: allSuppliers.filter((x) => !x.is_adjustment && x.is_active && x.jenis === jenis)
+  })).filter((g) => g.items.length > 0);
 
   const fetchProducts = async () => {
     try {
       const res = await fetch('/api/products');
       if (res.ok) {
         const data = await res.json();
+        setClientCache('products:all', data);
         setProducts(data);
       }
     } catch (err) {
@@ -60,34 +96,54 @@ export default function RiwayatPage() {
     }
   };
 
-  const fetchTransactions = async () => {
-    setIsLoading(true);
+  const fetchTransactions = useCallback(async (silent = false) => {
+    const isDefault = !startDate && !endDate && selectedProductId === 'all' && selectedKind === 'all';
+    if (!silent) setIsLoading(true);
     try {
       const params = new URLSearchParams();
       if (startDate) params.append('startDate', startDate);
       if (endDate) params.append('endDate', endDate);
       if (selectedProductId !== 'all') params.append('productId', selectedProductId);
-      if (selectedType !== 'all') params.append('type', selectedType);
+      if (selectedKind !== 'all') params.append('kind', selectedKind);
 
       const res = await fetch(`/api/transactions?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
         setTransactions(data);
+        if (isDefault) {
+          setClientCache('transactions:history', data);
+        }
       }
     } catch (err) {
       console.error('Error fetching transactions:', err);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [startDate, endDate, selectedProductId, selectedKind]);
 
   useEffect(() => {
     fetchProducts();
+    fetchSuppliers();
   }, []);
 
   useEffect(() => {
-    fetchTransactions();
-  }, [startDate, endDate, selectedProductId, selectedType]);
+    fetchTransactions(transactions.length > 0);
+
+    // Auto-refresh setiap 25 detik & saat tab browser kembali aktif
+    const interval = setInterval(() => {
+      fetchTransactions(true);
+    }, 25000);
+    const handleFocus = () => {
+      fetchTransactions(true);
+      fetchProducts();
+      fetchSuppliers();
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [fetchTransactions]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -98,7 +154,7 @@ export default function RiwayatPage() {
     setStartDate('');
     setEndDate('');
     setSelectedProductId('all');
-    setSelectedType('all');
+    setSelectedKind('all');
   };
 
   // Handle Export File
@@ -110,7 +166,7 @@ export default function RiwayatPage() {
       if (startDate) params.append('startDate', startDate);
       if (endDate) params.append('endDate', endDate);
       if (selectedProductId !== 'all') params.append('productId', selectedProductId);
-      if (selectedType !== 'all') params.append('type', selectedType);
+      if (selectedKind !== 'all') params.append('kind', selectedKind);
 
       const res = await fetch(`/api/transactions/export?${params.toString()}`);
       if (!res.ok) throw new Error('Gagal mengunduh laporan');
@@ -134,84 +190,117 @@ export default function RiwayatPage() {
     }
   };
 
-  // Handle Manual Transaction Submit
-  const handleManualSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const openManualModal = () => {
+    manualKeyRef.current = crypto.randomUUID();
+    setManualForm({ product_id: '', type: 'in', qty: 1, supplier_id: '', note: '' });
     setManualError('');
+    setPairConfirm(null);
+    setIsManualModalOpen(true);
+  };
 
-    if (!manualForm.product_id) {
-      setManualError('Pilih produk terlebih dahulu');
-      return;
-    }
-
-    const prod = products.find(p => p.id === parseInt(manualForm.product_id, 10));
+  // Kirim transaksi. Kunci idempotensi tetap sama walau dikirim ulang setelah konfirmasi.
+  const postManual = async (confirmNewPair: boolean) => {
+    const prod = products.find((p) => p.id === parseInt(manualForm.product_id, 10));
     if (!prod) return;
-
-    let totalQty = manualForm.qty;
-    let finalNote = manualForm.note;
-    if (manualForm.unit_mode === 'karton') {
-      if (!prod.qty_per_karton) {
-        setManualError(`Produk ini tidak menggunakan karton. Gunakan satuan ${prod.unit}.`);
+    const isIn = manualForm.type === 'in';
+    setIsSavingManual(true);
+    try {
+      const res = await fetch('/api/transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          product_id: prod.id,
+          type: manualForm.type,
+          qty: manualForm.qty,
+          ...(isIn ? { supplier_id: Number(manualForm.supplier_id) } : {}),
+          note: manualForm.note.trim() || null,
+          idempotency_key: manualKeyRef.current,
+          confirm_new_pair: confirmNewPair
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 409 && data.code === 'NEW_PAIR') {
+        const sup = allSuppliers.find((x) => x.id === Number(manualForm.supplier_id));
+        setPairConfirm({ productName: prod.name, supplierName: sup?.name ?? 'supplier ini' });
         return;
       }
-      totalQty = manualForm.qty * prod.qty_per_karton;
-      finalNote = `${manualForm.qty} karton (${totalQty} ${prod.unit})${finalNote ? ` - ${finalNote}` : ''}`;
-    }
-
-    try {
-      if (manualForm.type === 'in') {
-        const supplierRes = await fetch('/api/suppliers', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: manualForm.supplier_name })
-        });
-        const supplierData = await supplierRes.json();
-        if (!supplierRes.ok) {
-          setManualError(supplierData.error || 'Gagal menyimpan supplier');
-          return;
-        }
-
-        const transactionRes = await fetch('/api/transactions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            product_id: prod.id,
-            type: manualForm.type,
-            qty: totalQty,
-            supplier_id: supplierData.id,
-            note: finalNote || null
-          })
-        });
-        const transactionData = await transactionRes.json();
-        if (!transactionRes.ok) {
-          setManualError(transactionData.error || 'Gagal menyimpan transaksi');
-          return;
-        }
-      } else {
-        const transactionRes = await fetch('/api/transactions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            product_id: prod.id,
-            type: manualForm.type,
-            qty: totalQty,
-            note: finalNote || null
-          })
-        });
-        const transactionData = await transactionRes.json();
-        if (!transactionRes.ok) {
-          setManualError(transactionData.error || 'Gagal menyimpan transaksi');
-          return;
-        }
+      if (!res.ok) {
+        setManualError(data.error || 'Gagal menyimpan transaksi');
+        if (data.code === 'SUPPLIER_NONAKTIF') fetchSuppliers();
+        return;
       }
 
       setIsManualModalOpen(false);
+      invalidateClientCache('transactions');
+      invalidateClientCache('products');
+      invalidateClientCache('suppliers');
       showToast('Transaksi manual berhasil dicatat');
       fetchTransactions();
       fetchProducts();
     } catch {
       setManualError('Terjadi kesalahan pada server');
+    } finally {
+      setIsSavingManual(false);
     }
+  };
+
+  const handleManualSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isSavingManual) return;
+    setManualError('');
+
+    const prod = products.find((p) => p.id === parseInt(manualForm.product_id, 10));
+    if (!prod) {
+      setManualError('Pilih produk terlebih dahulu');
+      return;
+    }
+    if (!Number.isInteger(manualForm.qty) || manualForm.qty < 1) {
+      setManualError('Jumlah minimal 1 pcs');
+      return;
+    }
+
+    if (manualForm.type === 'out') {
+      if (manualForm.note.trim().length < 3) {
+        setManualError('Alasan barang keluar wajib diisi (minimal 3 karakter)');
+        return;
+      }
+      await postManual(false);
+      return;
+    }
+
+    if (!manualForm.supplier_id) {
+      setManualError('Supplier wajib dipilih untuk stok masuk');
+      return;
+    }
+
+    // Cek dulu apakah produk ini pernah masuk dari supplier ini.
+    setIsSavingManual(true);
+    try {
+      const params = new URLSearchParams({ product_id: String(prod.id), supplier_id: manualForm.supplier_id });
+      const res = await fetch(`/api/transactions/pair-check?${params.toString()}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setManualError(data.error || 'Gagal memeriksa riwayat supplier');
+        if (data.code === 'SUPPLIER_NONAKTIF') fetchSuppliers();
+        return;
+      }
+      if (data.is_new) {
+        const sup = allSuppliers.find((x) => x.id === Number(manualForm.supplier_id));
+        setPairConfirm({ productName: prod.name, supplierName: sup?.name ?? 'supplier ini' });
+        return;
+      }
+    } catch {
+      setManualError('Terjadi kesalahan pada server');
+      return;
+    } finally {
+      setIsSavingManual(false);
+    }
+    await postManual(false);
+  };
+
+  const handlePairConfirmYes = async () => {
+    setPairConfirm(null);
+    await postManual(true);
   };
 
   return (
@@ -232,16 +321,16 @@ export default function RiwayatPage() {
             gap: '10px',
             padding: '12px 18px',
             background: '#FFFFFF',
-            border: '1px solid #1E2C3A',
-            borderRadius: 'var(--radius-sm)',
+            border: '1px solid #0F172A',
+            borderRadius: 'var(--radius-md)',
             boxShadow: 'var(--shadow-md)',
             color: '#0F172A',
-            fontSize: '13.5px',
+            fontSize: '13px',
             fontWeight: 600,
-            animation: 'fadeIn 0.18s ease'
+            animation: 'fadeIn 0.15s ease'
           }}
         >
-          <CheckCircle2 size={18} style={{ color: '#15803D' }} />
+          <CheckCircle2 size={17} style={{ color: '#059669' }} />
           <span>{toastMessage}</span>
         </div>
       )}
@@ -252,29 +341,22 @@ export default function RiwayatPage() {
           <div
             style={{
               padding: '6px 14px',
-              borderRadius: 'var(--radius-sm)',
+              borderRadius: 'var(--radius-full)',
               background: '#FFFFFF',
               border: '1px solid #E2E8F0',
-              fontSize: '13px',
+              fontSize: '12.5px',
               fontWeight: 600,
-              color: '#1E2C3A',
-              boxShadow: 'var(--shadow-sm)'
+              color: '#0F172A',
+              boxShadow: 'var(--shadow-xs)'
             }}
           >
-            Total <strong style={{ color: '#1E2C3A' }}>{transactions.length}</strong> Catatan
+            Total <strong style={{ color: '#0F172A' }}>{transactions.length}</strong> Catatan
           </div>
-          <button
-            onClick={fetchTransactions}
-            className="btn btn-secondary btn-sm"
-            title="Segarkan Riwayat"
-          >
-            <RefreshCw size={14} className={isLoading ? 'pulse' : ''} />
-          </button>
         </div>
 
         <div style={{ display: 'flex', gap: '8px' }}>
           <button
-            onClick={() => setIsManualModalOpen(true)}
+            onClick={openManualModal}
             className="btn btn-secondary btn-sm"
           >
             <PlusCircle size={15} />
@@ -291,95 +373,200 @@ export default function RiwayatPage() {
         </div>
       </div>
 
-      {/* Filter Bar */}
+      {/* Spacious Modern Filter Card */}
       <div
         style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
-          gap: '14px',
-          padding: '18px 20px',
           background: '#FFFFFF',
           border: '1px solid #E2E8F0',
-          borderRadius: 'var(--radius-md)',
-          marginBottom: '20px',
+          borderRadius: 'var(--radius-lg)',
+          padding: '22px 24px',
+          marginBottom: '24px',
           boxShadow: 'var(--shadow-card)'
         }}
       >
-        {/* Date Filter: Dari Tanggal */}
-        <div>
-          <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <Calendar size={13} style={{ color: '#64748B' }} />
-            <span>Dari Tanggal</span>
-          </label>
-          <input
-            type="date"
-            className="form-input"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-          />
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: '16px',
+            paddingBottom: '14px',
+            borderBottom: '1px solid #F1F5F9'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Filter size={15} style={{ color: '#0F172A' }} />
+            <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', margin: 0 }}>
+              Filter Riwayat Transaksi
+            </h4>
+          </div>
+
+          {(startDate || endDate || selectedProductId !== 'all' || selectedKind !== 'all') && (
+            <button
+              onClick={handleResetFilter}
+              className="btn btn-secondary btn-sm"
+              style={{ height: '30px', fontSize: '12px', padding: '0 12px' }}
+            >
+              <RotateCcw size={12} />
+              <span>Reset Filter</span>
+            </button>
+          )}
         </div>
 
-        {/* Date Filter: Sampai Tanggal */}
-        <div>
-          <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <Calendar size={13} style={{ color: '#64748B' }} />
-            <span>Sampai Tanggal</span>
-          </label>
-          <input
-            type="date"
-            className="form-input"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-          />
-        </div>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+            gap: '16px'
+          }}
+        >
+          {/* Dari Tanggal (DD/MM/YYYY) */}
+          <div>
+            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13.5px', fontWeight: 600, color: '#1E293B', marginBottom: '8px' }}>
+              <Calendar size={14} style={{ color: '#64748B' }} />
+              <span>Dari Tanggal</span>
+            </label>
+            <div style={{ position: 'relative' }}>
+              <input
+                type="text"
+                readOnly
+                placeholder="dd/mm/yyyy"
+                value={startDate ? (() => {
+                  const [y, m, d] = startDate.split('-');
+                  return `${d}/${m}/${y}`;
+                })() : ''}
+                className="form-input"
+                style={{ paddingRight: '38px', cursor: 'pointer', background: '#FFFFFF', height: '42px', fontSize: '14px', borderRadius: '8px' }}
+                onClick={(e) => {
+                  const dateInput = e.currentTarget.nextElementSibling as HTMLInputElement;
+                  if (dateInput) {
+                    if (typeof dateInput.showPicker === 'function') dateInput.showPicker();
+                    else dateInput.focus();
+                  }
+                }}
+              />
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                style={{
+                  position: 'absolute',
+                  right: '6px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  opacity: 0,
+                  width: '28px',
+                  height: '28px',
+                  cursor: 'pointer'
+                }}
+              />
+              <Calendar
+                size={16}
+                style={{
+                  position: 'absolute',
+                  right: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: '#64748B',
+                  pointerEvents: 'none'
+                }}
+              />
+            </div>
+          </div>
 
-        {/* Dropdown Produk */}
-        <div>
-          <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <Filter size={13} style={{ color: '#64748B' }} />
-            <span>Filter Produk</span>
-          </label>
-          <select
-            className="form-select"
-            value={selectedProductId}
-            onChange={(e) => setSelectedProductId(e.target.value)}
-          >
-            <option value="all">Semua Produk</option>
-            {products.map((p) => (
-              <option key={p.id} value={p.id.toString()}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </div>
+          {/* Sampai Tanggal (DD/MM/YYYY) */}
+          <div>
+            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13.5px', fontWeight: 600, color: '#1E293B', marginBottom: '8px' }}>
+              <Calendar size={14} style={{ color: '#64748B' }} />
+              <span>Sampai Tanggal</span>
+            </label>
+            <div style={{ position: 'relative' }}>
+              <input
+                type="text"
+                readOnly
+                placeholder="dd/mm/yyyy"
+                value={endDate ? (() => {
+                  const [y, m, d] = endDate.split('-');
+                  return `${d}/${m}/${y}`;
+                })() : ''}
+                className="form-input"
+                style={{ paddingRight: '38px', cursor: 'pointer', background: '#FFFFFF', height: '42px', fontSize: '14px', borderRadius: '8px' }}
+                onClick={(e) => {
+                  const dateInput = e.currentTarget.nextElementSibling as HTMLInputElement;
+                  if (dateInput) {
+                    if (typeof dateInput.showPicker === 'function') dateInput.showPicker();
+                    else dateInput.focus();
+                  }
+                }}
+              />
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                style={{
+                  position: 'absolute',
+                  right: '6px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  opacity: 0,
+                  width: '28px',
+                  height: '28px',
+                  cursor: 'pointer'
+                }}
+              />
+              <Calendar
+                size={16}
+                style={{
+                  position: 'absolute',
+                  right: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: '#64748B',
+                  pointerEvents: 'none'
+                }}
+              />
+            </div>
+          </div>
 
-        {/* Dropdown Jenis Transaksi */}
-        <div>
-          <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <Filter size={13} style={{ color: '#64748B' }} />
-            <span>Jenis Transaksi</span>
-          </label>
-          <select
-            className="form-select"
-            value={selectedType}
-            onChange={(e) => setSelectedType(e.target.value as 'all' | TransactionType)}
-          >
-            <option value="all">Semua Jenis</option>
-            <option value="in">Stok Masuk (+)</option>
-            <option value="out">Stok Keluar (-)</option>
-          </select>
-        </div>
+          {/* Filter Produk */}
+          <div>
+            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13.5px', fontWeight: 600, color: '#1E293B', marginBottom: '8px' }}>
+              <Filter size={14} style={{ color: '#64748B' }} />
+              <span>Filter Produk</span>
+            </label>
+            <select
+              className="form-select"
+              style={{ height: '42px', fontSize: '14px', borderRadius: '8px' }}
+              value={selectedProductId}
+              onChange={(e) => setSelectedProductId(e.target.value)}
+            >
+              <option value="all">Semua Produk</option>
+              {products.map((p) => (
+                <option key={p.id} value={p.id.toString()}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
-        {/* Reset Filter Button */}
-        <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-          <button
-            onClick={handleResetFilter}
-            className="btn btn-secondary"
-            style={{ width: '100%', height: '38px' }}
-          >
-            <RotateCcw size={14} />
-            <span>Reset Filter</span>
-          </button>
+          {/* Jenis Transaksi */}
+          <div>
+            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13.5px', fontWeight: 600, color: '#1E293B', marginBottom: '8px' }}>
+              <Filter size={14} style={{ color: '#64748B' }} />
+              <span>Jenis Transaksi</span>
+            </label>
+            <select
+              className="form-select"
+              style={{ height: '42px', fontSize: '14px', borderRadius: '8px' }}
+              value={selectedKind}
+              onChange={(e) => setSelectedKind(e.target.value as 'all' | TransactionKind)}
+            >
+              <option value="all">Semua Jenis</option>
+              {TRANSACTION_KINDS.map((k) => (
+                <option key={k} value={k}>{TRANSACTION_KIND_LABEL[k]}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -391,15 +578,18 @@ export default function RiwayatPage() {
               <th style={{ width: '18%' }}>Tanggal & Waktu</th>
               <th style={{ width: '12%' }}>Jenis</th>
               <th style={{ width: '28%' }}>Produk</th>
-              <th style={{ width: '14%', textAlign: 'right' }}>Jumlah</th>
+              <th style={{ width: '14%' }}>Jumlah</th>
               <th style={{ width: '28%' }}>Supplier / Catatan</th>
             </tr>
           </thead>
           <tbody>
-            {isLoading ? (
+            {isLoading && transactions.length === 0 ? (
               <tr>
                 <td colSpan={5} style={{ textAlign: 'center', padding: '36px', color: '#94A3B8' }}>
-                  Memuat data riwayat...
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                    <div style={{ width: '16px', height: '16px', borderRadius: '50%', border: '2px solid #CBD5E1', borderTopColor: '#0F172A', animation: 'spin 0.6s linear infinite' }} />
+                    <span>Memuat data riwayat...</span>
+                  </div>
                 </td>
               </tr>
             ) : transactions.length === 0 ? (
@@ -412,36 +602,40 @@ export default function RiwayatPage() {
             ) : (
               transactions.map((tx) => {
                 const isIn = tx.type === 'in';
+                const kind: TransactionKind = tx.kind ?? (isIn ? 'masuk' : 'keluar_manual');
+                // "Stok awal" (opname pertama) bukan barang keluar/masuk sungguhan: label netral.
+                const badgeType = kind === 'masuk' ? 'in' : kind === 'koreksi' ? 'koreksi' : kind === 'stok_awal' ? 'neutral' : 'out';
+                const qtyColor = kind === 'masuk' ? '#059669' : kind === 'koreksi' ? '#B45309' : kind === 'stok_awal' ? '#475569' : '#DC2626';
                 return (
                   <tr key={tx.id}>
                     <td style={{ color: '#475569', fontSize: '13px' }}>
                       {formatDateTime(tx.created_at)}
                     </td>
                     <td>
-                      <Badge type={isIn ? 'in' : 'out'}>
-                        {isIn ? 'Masuk (+)' : 'Keluar (-)'}
+                      <Badge type={badgeType}>
+                        {TRANSACTION_KIND_LABEL[kind]}
                       </Badge>
                     </td>
                     <td>
-                      <span style={{ fontWeight: 600, color: '#1E2C3A', fontSize: '14px' }}>
+                      <span style={{ fontWeight: 600, color: '#0F172A', fontSize: '13.5px' }}>
                         {tx.product?.name || `Produk #${tx.product_id}`}
                       </span>
                     </td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td>
                       <span
                         style={{
                           fontWeight: 700,
-                          fontSize: '14px',
-                          color: isIn ? '#15803D' : '#DC2626'
+                          fontSize: '13.5px',
+                          color: qtyColor
                         }}
                       >
-                        {isIn ? '+' : '-'}{tx.qty} {tx.product?.unit || 'pcs'}
+                        {isIn ? '+' : '-'}{tx.qty} pcs
                       </span>
                     </td>
                     <td>
                       <div style={{ color: '#475569', fontSize: '13px' }}>
                         {tx.supplier?.name ? (
-                          <span style={{ fontWeight: 500, color: '#1E2C3A' }}>
+                          <span style={{ fontWeight: 500, color: '#0F172A' }}>
                             {tx.supplier.name}
                           </span>
                         ) : tx.note ? (
@@ -473,7 +667,7 @@ export default function RiwayatPage() {
       >
         <div style={{ padding: '4px 0 16px' }}>
           <p style={{ fontSize: '13px', color: '#64748B', marginBottom: '16px', lineHeight: 1.45 }}>
-            Unduh laporan transaksi sesuai filter tanggal dan produk yang sedang dipilih:
+            Unduh laporan transaksi sesuai filter tanggal, produk, dan jenis yang sedang dipilih:
           </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -489,9 +683,9 @@ export default function RiwayatPage() {
                 fontSize: '13.5px'
               }}
             >
-              <FileSpreadsheet size={20} style={{ color: '#15803D' }} />
-              <div style={{ textAlign: 'left', marginLeft: '6px' }}>
-                <span style={{ fontWeight: 600, display: 'block', color: '#1E2C3A' }}>Unduh Microsoft Excel (.xlsx)</span>
+              <FileSpreadsheet size={19} style={{ color: '#059669' }} />
+              <div style={{ textAlign: 'left', marginLeft: '8px' }}>
+                <span style={{ fontWeight: 600, display: 'block', color: '#0F172A' }}>Unduh Microsoft Excel (.xlsx)</span>
                 <span style={{ fontSize: '11.5px', color: '#64748B' }}>Format spreadsheet lengkap</span>
               </div>
             </button>
@@ -508,16 +702,16 @@ export default function RiwayatPage() {
                 fontSize: '13.5px'
               }}
             >
-              <FileText size={20} style={{ color: '#DC2626' }} />
-              <div style={{ textAlign: 'left', marginLeft: '6px' }}>
-                <span style={{ fontWeight: 600, display: 'block', color: '#1E2C3A' }}>Unduh Dokumen PDF (.pdf)</span>
+              <FileText size={19} style={{ color: '#DC2626' }} />
+              <div style={{ textAlign: 'left', marginLeft: '8px' }}>
+                <span style={{ fontWeight: 600, display: 'block', color: '#0F172A' }}>Unduh Dokumen PDF (.pdf)</span>
                 <span style={{ fontSize: '11.5px', color: '#64748B' }}>Format cetak siap pakai</span>
               </div>
             </button>
           </div>
 
           {isExporting && (
-            <p style={{ fontSize: '12px', color: '#1E2C3A', textAlign: 'center', marginTop: '12px' }}>
+            <p style={{ fontSize: '12px', color: '#0F172A', textAlign: 'center', marginTop: '12px' }}>
               Sedang memproses laporan...
             </p>
           )}
@@ -557,15 +751,15 @@ export default function RiwayatPage() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               <button
                 type="button"
-                onClick={() => setManualForm({ ...manualForm, type: 'in' })}
+                onClick={() => setManualForm({ ...manualForm, type: 'in', note: '' })}
                 style={{
                   padding: '9px',
-                  borderRadius: 'var(--radius-sm)',
+                  borderRadius: 'var(--radius-md)',
                   fontWeight: 600,
                   fontSize: '13px',
-                  background: manualForm.type === 'in' ? '#DCFCE7' : '#FFFFFF',
-                  color: manualForm.type === 'in' ? '#15803D' : '#475569',
-                  border: `1px solid ${manualForm.type === 'in' ? '#86EFAC' : '#CBD5E1'}`,
+                  background: manualForm.type === 'in' ? '#ECFDF5' : '#FFFFFF',
+                  color: manualForm.type === 'in' ? '#065F46' : '#475569',
+                  border: `1px solid ${manualForm.type === 'in' ? '#A7F3D0' : '#D1D5DB'}`,
                   cursor: 'pointer'
                 }}
               >
@@ -573,15 +767,15 @@ export default function RiwayatPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setManualForm({ ...manualForm, type: 'out' })}
+                onClick={() => setManualForm({ ...manualForm, type: 'out', supplier_id: '', note: '' })}
                 style={{
                   padding: '9px',
-                  borderRadius: 'var(--radius-sm)',
+                  borderRadius: 'var(--radius-md)',
                   fontWeight: 600,
                   fontSize: '13px',
-                  background: manualForm.type === 'out' ? '#FEE2E2' : '#FFFFFF',
-                  color: manualForm.type === 'out' ? '#B91C1C' : '#475569',
-                  border: `1px solid ${manualForm.type === 'out' ? '#FCA5A5' : '#CBD5E1'}`,
+                  background: manualForm.type === 'out' ? '#FEF2F2' : '#FFFFFF',
+                  color: manualForm.type === 'out' ? '#991B1B' : '#475569',
+                  border: `1px solid ${manualForm.type === 'out' ? '#FECACA' : '#D1D5DB'}`,
                   cursor: 'pointer'
                 }}
               >
@@ -595,68 +789,86 @@ export default function RiwayatPage() {
             <select
               className="form-select"
               value={manualForm.product_id}
-              onChange={(e) => setManualForm({ ...manualForm, product_id: e.target.value })}
+              onChange={(e) => setManualForm({ ...manualForm, product_id: e.target.value, supplier_id: '' })}
               required
             >
               <option value="">-- Pilih Produk --</option>
               {products.map((p) => (
                 <option key={p.id} value={p.id.toString()}>
-                  {p.name} (Stok: {p.stock_current} {p.unit})
+                  {p.name} (Stok: {p.stock_current} pcs)
                 </option>
               ))}
             </select>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div className="form-group">
-              <label className="form-label">Jumlah *</label>
-              <input
-                type="number"
-                min={1}
-                className="form-input"
-                value={manualForm.qty}
-                onChange={(e) => setManualForm({ ...manualForm, qty: parseInt(e.target.value, 10) || 1 })}
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Satuan Input *</label>
-              <select
-                className="form-select"
-                value={manualForm.unit_mode}
-                onChange={(e) => setManualForm({ ...manualForm, unit_mode: e.target.value })}
-              >
-                <option value="pcs">Satuan Ecer (pcs)</option>
-                <option value="karton">Karton / Dus</option>
-              </select>
-            </div>
+          <div className="form-group">
+            <label className="form-label">Jumlah (pcs) *</label>
+            <input
+              type="number"
+              min={1}
+              className="form-input"
+              value={manualForm.qty}
+              onChange={(e) => setManualForm({ ...manualForm, qty: parseInt(e.target.value, 10) || 1 })}
+              required
+            />
           </div>
 
           {manualForm.type === 'in' && (
             <div className="form-group">
-              <label className="form-label">Nama Supplier *</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="Contoh: Unilever"
-                value={manualForm.supplier_name}
-                onChange={(e) => setManualForm({ ...manualForm, supplier_name: e.target.value })}
+              <label className="form-label">Supplier *</label>
+              <select
+                className="form-select"
+                value={manualForm.supplier_id}
+                onChange={(e) => setManualForm({ ...manualForm, supplier_id: e.target.value })}
                 required
-              />
+              >
+                <option value="">-- Pilih Supplier --</option>
+                {supplierGroups.map((g) => (
+                  <optgroup key={g.jenis} label={`Supplier ${SUPPLIER_JENIS_LABEL[g.jenis]}`}>
+                    {g.items.map((o) => (
+                      <option key={o.id} value={o.id}>{o.name}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+              {supplierGroups.length === 0 && (
+                <p style={{ fontSize: '12px', color: '#B45309', margin: '4px 0 0' }}>
+                  Belum ada supplier aktif. Tambahkan atau aktifkan supplier di halaman Supplier.
+                </p>
+              )}
             </div>
           )}
 
-          <div className="form-group">
-            <label className="form-label">Catatan Tambahan (Opsional)</label>
-            <input
-              type="text"
-              className="form-input"
-              placeholder="Keterangan singkat..."
-              value={manualForm.note}
-              onChange={(e) => setManualForm({ ...manualForm, note: e.target.value })}
-            />
-          </div>
+          {manualForm.type === 'out' ? (
+            <div className="form-group">
+              <label className="form-label">Alasan (wajib) *</label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Contoh: kemasan rusak, barang hilang"
+                value={manualForm.note}
+                maxLength={200}
+                minLength={3}
+                onChange={(e) => setManualForm({ ...manualForm, note: e.target.value })}
+                required
+              />
+              <p style={{ fontSize: '12px', color: '#64748B', marginTop: '6px' }}>
+                Barang terjual dicatat lewat stok opname di Telegram. Keluar manual hanya untuk barang rusak atau hilang.
+              </p>
+            </div>
+          ) : (
+            <div className="form-group">
+              <label className="form-label">Catatan Tambahan (Opsional)</label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Keterangan singkat..."
+                value={manualForm.note}
+                maxLength={200}
+                onChange={(e) => setManualForm({ ...manualForm, note: e.target.value })}
+              />
+            </div>
+          )}
 
           <div
             style={{
@@ -678,11 +890,35 @@ export default function RiwayatPage() {
             <button
               type="submit"
               className="btn btn-primary"
+              disabled={isSavingManual}
             >
-              Simpan Transaksi
+              {isSavingManual ? 'Menyimpan...' : 'Simpan Transaksi'}
             </button>
           </div>
         </form>
+      </Modal>
+
+      {/* Konfirmasi pasangan produk + supplier baru (peringatan lunak) */}
+      <Modal
+        isOpen={pairConfirm !== null}
+        onClose={() => setPairConfirm(null)}
+        title="Supplier Baru untuk Produk Ini"
+        maxWidth="420px"
+      >
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', marginBottom: '20px' }}>
+          <AlertCircle size={20} style={{ color: '#B45309', flexShrink: 0, marginTop: '1px' }} />
+          <p style={{ fontSize: '13.5px', color: '#0F172A', lineHeight: 1.5, margin: 0 }}>
+            <strong>{pairConfirm?.productName}</strong> belum pernah masuk dari <strong>{pairConfirm?.supplierName}</strong>. Lanjutkan?
+          </p>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+          <button type="button" className="btn btn-secondary" onClick={() => setPairConfirm(null)}>
+            Batal
+          </button>
+          <button type="button" className="btn btn-primary" onClick={handlePairConfirmYes} disabled={isSavingManual}>
+            Ya, Lanjutkan
+          </button>
+        </div>
       </Modal>
     </DashboardLayout>
   );

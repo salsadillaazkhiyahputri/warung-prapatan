@@ -3,11 +3,13 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { clearAuthCache } from './auth-cache';
 import {
   LayoutDashboard,
   Package,
   Truck,
   History,
+  ClipboardCheck,
   LogOut,
   Store,
   ChevronRight
@@ -24,11 +26,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
 
   const handleLogout = async () => {
     try {
+      clearAuthCache();
       await fetch('/api/auth/logout', { method: 'POST' });
       router.push('/login');
       router.refresh();
     } catch (err) {
       console.error('Logout error:', err);
+      clearAuthCache();
       router.push('/login');
     }
   };
@@ -53,6 +57,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
       label: 'Riwayat Transaksi',
       href: '/riwayat',
       icon: <History size={18} />
+    },
+    {
+      label: 'Stok Opname',
+      href: '/opname',
+      icon: <ClipboardCheck size={18} />
     }
   ];
 
@@ -65,7 +74,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(15, 23, 42, 0.45)',
+            background: 'rgba(15, 23, 42, 0.5)',
             zIndex: 40
           }}
         />
@@ -73,8 +82,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
 
       <aside
         style={{
-          width: '256px',
-          background: '#1E2C3A',
+          width: '260px',
+          background: '#0F172A',
           borderRight: '1px solid rgba(255, 255, 255, 0.08)',
           display: 'flex',
           flexDirection: 'column',
@@ -82,6 +91,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
           flexShrink: 0,
           transition: 'transform var(--transition-normal)',
           zIndex: 50,
+          // Tetap di tempat saat halaman digulir; menu yang panjang punya scroll sendiri.
+          position: 'sticky',
+          top: 0,
+          height: '100vh',
+          alignSelf: 'flex-start',
+          overflowY: 'auto',
           ...(isMobileOpen ? {
             position: 'fixed',
             top: 0,
@@ -95,33 +110,36 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
         <div>
           <div
             style={{
-              padding: '20px 20px',
+              padding: '22px 20px',
               borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
               display: 'flex',
               alignItems: 'center',
-              gap: '12px',
-              background: '#17222D'
+              gap: '12px'
             }}
           >
             <div
               style={{
-                width: '38px',
-                height: '38px',
-                borderRadius: 'var(--radius-sm)',
-                background: '#2A3B4C',
+                width: '40px',
+                height: '40px',
+                borderRadius: 'var(--radius-md)',
+                background: 'linear-gradient(135deg, #1E293B 0%, #334155 100%)',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#FFFFFF'
+                color: '#38BDF8',
+                boxShadow: '0 2px 6px rgba(0, 0, 0, 0.2)'
               }}
             >
               <Store size={20} />
             </div>
             <div>
-              <h1 style={{ fontSize: '15px', fontWeight: 700, color: '#FFFFFF', lineHeight: 1.2 }}>
-                Warung Prapatan
-              </h1>
-              <p style={{ fontSize: '11.5px', color: '#94A3B8', marginTop: '2px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <h1 style={{ fontSize: '15.5px', fontWeight: 700, color: '#FFFFFF', lineHeight: 1.2, letterSpacing: '-0.01em' }}>
+                  Warung Prapatan
+                </h1>
+              </div>
+              <p style={{ fontSize: '11.5px', color: '#94A3B8', marginTop: '2px', fontWeight: 500 }}>
                 Sistem Manajemen Stok
               </p>
             </div>
@@ -136,29 +154,33 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
                   key={item.href}
                   href={item.href}
                   onClick={onCloseMobile}
+                  prefetch={true}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     padding: '10px 14px',
-                    borderRadius: 'var(--radius-sm)',
+                    borderRadius: 'var(--radius-md)',
                     fontSize: '13.5px',
                     fontWeight: isActive ? 600 : 500,
-                    color: isActive ? '#FFFFFF' : '#CBD5E1',
-                    background: isActive ? '#2A3B4C' : 'transparent',
-                    borderLeft: isActive ? '3px solid #60A5FA' : '3px solid transparent',
+                    color: isActive ? '#FFFFFF' : '#94A3B8',
+                    background: isActive ? '#1E293B' : 'transparent',
+                    border: isActive ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid transparent',
+                    boxShadow: isActive ? '0 1px 2px rgba(0, 0, 0, 0.2)' : 'none',
                     transition: 'all var(--transition-fast)'
                   }}
                   className="nav-link"
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '11px' }}>
-                    <span style={{ color: isActive ? '#FFFFFF' : '#94A3B8', display: 'flex' }}>
+                    <span style={{ color: isActive ? '#38BDF8' : '#64748B', display: 'flex' }}>
                       {item.icon}
                     </span>
                     <span>{item.label}</span>
                   </div>
 
-                  {isActive && <ChevronRight size={14} style={{ color: '#94A3B8' }} />}
+                  {isActive ? (
+                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#38BDF8' }} />
+                  ) : null}
                 </Link>
               );
             })}
@@ -168,33 +190,34 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
         {/* User Card & Logout */}
         <div
           style={{
-            padding: '16px 12px',
+            padding: '16px 14px',
             borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-            background: '#17222D'
+            background: 'rgba(0, 0, 0, 0.15)'
           }}
         >
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '10px',
+              gap: '11px',
               padding: '10px 12px',
-              borderRadius: 'var(--radius-sm)',
-              background: '#1E2C3A',
+              borderRadius: 'var(--radius-md)',
+              background: '#1E293B',
+              border: '1px solid rgba(255, 255, 255, 0.06)',
               marginBottom: '10px'
             }}
           >
             <div
               style={{
-                width: '32px',
-                height: '32px',
+                width: '34px',
+                height: '34px',
                 borderRadius: 'var(--radius-sm)',
-                background: '#2A3B4C',
-                color: '#FFFFFF',
+                background: '#334155',
+                color: '#F8FAFC',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontWeight: 600,
+                fontWeight: 700,
                 fontSize: '12px'
               }}
             >
@@ -204,9 +227,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
               <p style={{ fontSize: '13px', fontWeight: 600, color: '#FFFFFF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 Pemilik Toko
               </p>
-              <p style={{ fontSize: '11px', color: '#94A3B8' }}>
-                Akses Administrator
-              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '1px' }}>
+                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981' }} />
+                <span style={{ fontSize: '11px', color: '#94A3B8' }}>Online</span>
+              </div>
             </div>
           </div>
 
@@ -222,23 +246,23 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
               fontSize: '13px',
               fontWeight: 500,
               color: '#F87171',
-              background: 'rgba(239, 68, 68, 0.1)',
+              background: 'rgba(239, 68, 68, 0.08)',
               border: '1px solid rgba(239, 68, 68, 0.2)',
-              borderRadius: 'var(--radius-sm)',
+              borderRadius: 'var(--radius-md)',
               transition: 'all var(--transition-fast)'
             }}
             className="logout-btn"
           >
-            <LogOut size={15} />
-            <span>Keluar</span>
+            <LogOut size={14} />
+            <span>Keluar Akun</span>
           </button>
         </div>
       </aside>
 
       <style jsx global>{`
-        .nav-link:not([style*="#2A3B4C"]):hover {
-          background: rgba(255, 255, 255, 0.06) !important;
-          color: #FFFFFF !important;
+        .nav-link:not([style*="#1E293B"]):hover {
+          background: rgba(255, 255, 255, 0.05) !important;
+          color: #F8FAFC !important;
         }
         .logout-btn:hover {
           background: #DC2626 !important;

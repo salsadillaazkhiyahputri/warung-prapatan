@@ -20,33 +20,35 @@ export const StatCard: React.FC<StatCardProps> = ({
       style={{
         background: '#FFFFFF',
         border: `1px solid ${isAlert ? '#FECACA' : '#E2E8F0'}`,
-        borderRadius: 'var(--radius-md)',
-        padding: '20px 22px',
+        borderRadius: 'var(--radius-lg)',
+        padding: '22px 24px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        boxShadow: 'var(--shadow-card)',
+        boxShadow: isAlert
+          ? '0 1px 3px 0 rgba(220, 38, 38, 0.08)'
+          : 'var(--shadow-card)',
         transition: 'all var(--transition-fast)'
       }}
       className="stat-card"
     >
       <div>
-        <p style={{ color: '#64748B', fontSize: '13px', fontWeight: 500, marginBottom: '6px' }}>
+        <p style={{ color: '#64748B', fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '8px' }}>
           {title}
         </p>
         <h3
           style={{
-            fontSize: '28px',
-            fontWeight: 700,
-            letterSpacing: '-0.02em',
-            color: isAlert ? '#DC2626' : '#1E2C3A',
-            lineHeight: 1.1
+            fontSize: '30px',
+            fontWeight: 800,
+            letterSpacing: '-0.03em',
+            color: isAlert ? '#DC2626' : '#0F172A',
+            lineHeight: 1
           }}
         >
           {value}
         </h3>
         {subtitle && (
-          <p style={{ fontSize: '12px', color: '#94A3B8', marginTop: '6px' }}>
+          <p style={{ fontSize: '13px', color: '#64748B', marginTop: '7px' }}>
             {subtitle}
           </p>
         )}
@@ -54,16 +56,17 @@ export const StatCard: React.FC<StatCardProps> = ({
 
       <div
         style={{
-          width: '46px',
-          height: '46px',
-          borderRadius: 'var(--radius-sm)',
-          background: isAlert ? '#FEF2F2' : '#F8FAFC',
-          color: isAlert ? '#DC2626' : '#1E2C3A',
+          width: '48px',
+          height: '48px',
+          borderRadius: 'var(--radius-md)',
+          background: isAlert ? '#FEF2F2' : '#F1F5F9',
+          color: isAlert ? '#DC2626' : '#0F172A',
           border: `1px solid ${isAlert ? '#FECACA' : '#E2E8F0'}`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          flexShrink: 0
+          flexShrink: 0,
+          boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)'
         }}
       >
         {icon}
@@ -71,7 +74,9 @@ export const StatCard: React.FC<StatCardProps> = ({
 
       <style jsx>{`
         .stat-card:hover {
-          border-color: ${isAlert ? '#FCA5A5' : '#CBD5E1'};
+          transform: translateY(-1px);
+          border-color: ${isAlert ? '#F87171' : '#CBD5E1'};
+          box-shadow: 0 4px 12px 0 rgba(15, 23, 42, 0.06);
         }
       `}</style>
     </div>

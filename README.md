@@ -5,47 +5,55 @@ Aplikasi web full-stack terintegrasi yang menggabungkan **Dashboard Web Next.js*
 
 ---
 
-## 👥 Tim Pengembang & Pembimbing
-- **Dosen Pembimbing**: Muhammad Abdul Haq, S.Tr.T., M.Eng., Ph.D.
+## 👥 Tim Pengembang & Pembagian Tugas
+
+**Dosen Pembimbing**: Muhammad Abdul Haq, S.Tr.T., M.Eng., Ph.D.
+
+```text
 ANGGOTA 1: Rizky Pratama Putra (20230140005)
 DATABASE & INTEGRATION
-- Supabase
-- Database
-- Query
-- Authentication support
--Integrasi dashboard ↔ chatbot
+│
+├── Supabase
+├── Database
+├── Query
+├── Authentication support
+└── Integrasi dashboard ↔ chatbot
 
 
 ANGGOTA 2: Salsa Dilla Azkhiyah Putri (20230140077)
 DASHBOARD CORE
-- Login
-- Layout
-- Sidebar
-- Dashboard
-- Summary card
-- Transaksi terbaru
+│
+├── Login
+├── Layout
+├── Sidebar
+├── Dashboard
+├── Summary card
+└── Transaksi terbaru
 
 
 ANGGOTA 3: Refky Muhammad Syahrin (20230140050)
 DASHBOARD MANAGEMENT
-- Produk
-- Supplier
-- Riwayat
-- Filter
-- Export Excel/PDF
+│
+├── Produk
+├── Supplier
+├── Riwayat
+├── Filter
+└── Export Excel/PDF
 
 
 ANGGOTA 4: Mannanta Brilian Citra (20230140228)
 CHATBOT
-- Telegram
-- n8n
-- AI Agent
-- Groq + Llama
-- Stok masuk
-- Stok keluar
-- Cek stok
-- Rekap
-- Fallback
+│
+├── Telegram
+├── n8n
+├── AI Agent
+├── Groq + Llama
+├── Stok masuk
+├── Stok keluar
+├── Cek stok
+├── Rekap
+└── Fallback
+```
 
 ---
 
