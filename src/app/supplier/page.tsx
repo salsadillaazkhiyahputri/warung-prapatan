@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
@@ -48,22 +48,6 @@ export default function SupplierPage() {
   const [confirmAction, setConfirmAction] = useState<{ kind: 'deactivate' | 'delete'; supplier: Supplier } | null>(null);
   const [actionError, setActionError] = useState('');
 
-  const fetchSuppliers = async () => {
-    if (suppliers.length === 0) setIsLoading(true);
-    try {
-      const res = await fetch('/api/suppliers');
-      if (res.ok) {
-        const data = await res.json();
-        setSuppliers(data);
-        setClientCache('suppliers:all', data);
-      }
-    } catch (err) {
-      console.error('Error fetching suppliers:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   // Ringkasan barang masuk per jenis supplier, 30 hari terakhir (tanpa koreksi stok).
   const [masuk, setMasuk] = useState<MasukPerJenisRow[]>(() => {
     return getClientCache<MasukPerJenisRow[]>('suppliers:masuk:rows') || [];
@@ -73,33 +57,56 @@ export default function SupplierPage() {
   });
   const [masukError, setMasukError] = useState('');
 
-  const fetchMasuk = async () => {
+  const refreshAll = useCallback(async (silent = false) => {
+    if (!silent && suppliers.length === 0) setIsLoading(true);
     setMasukError('');
     try {
-      const res = await fetch('/api/suppliers/masuk-per-jenis');
-      const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        setMasukError(data?.error || 'Gagal memuat ringkasan barang masuk');
-        return;
-      }
-      setMasuk(data.rows);
-      setMasukRange(data.range);
-      setClientCache('suppliers:masuk:rows', data.rows);
-      setClientCache('suppliers:masuk:range', data.range);
-    } catch {
-      setMasukError('Gagal memuat ringkasan barang masuk');
-    }
-  };
+      const [resSuppliers, resMasuk] = await Promise.all([
+        fetch('/api/suppliers'),
+        fetch('/api/suppliers/masuk-per-jenis')
+      ]);
 
-  const refreshAll = () => {
-    fetchSuppliers();
-    fetchMasuk();
-  };
+      if (resSuppliers.ok) {
+        const sData = await resSuppliers.json();
+        setSuppliers(sData);
+        setClientCache('suppliers:all', sData);
+      }
+
+      if (resMasuk.ok) {
+        const mData = await resMasuk.json();
+        setMasuk(mData.rows);
+        setMasukRange(mData.range);
+        setClientCache('suppliers:masuk:rows', mData.rows);
+        setClientCache('suppliers:masuk:range', mData.range);
+      } else {
+        const errJson = await resMasuk.json().catch(() => null);
+        setMasukError(errJson?.error || 'Gagal memuat ringkasan barang masuk');
+      }
+    } catch (err) {
+      console.error('Error refreshing suppliers:', err);
+      setMasukError('Gagal memuat ringkasan barang masuk');
+    } finally {
+      if (!silent) setIsLoading(false);
+    }
+  }, [suppliers.length]);
 
   useEffect(() => {
-    fetchSuppliers();
-    fetchMasuk();
-  }, []);
+    refreshAll(true);
+
+    // Auto-refresh di latar belakang setiap 30 detik
+    const interval = setInterval(() => {
+      refreshAll(true);
+    }, 30000);
+
+    // Segarkan otomatis jika user kembali ke tab browser ini
+    const handleFocus = () => refreshAll(true);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [refreshAll]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -126,7 +133,7 @@ export default function SupplierPage() {
       setConfirmAction(null);
       invalidateClientCache('suppliers');
       showToast(isActive ? `"${supplier.name}" diaktifkan lagi` : `"${supplier.name}" dinonaktifkan`);
-      fetchSuppliers();
+      refreshAll(true);
     } catch {
       setActionError('Terjadi kesalahan pada server');
     } finally {
@@ -143,13 +150,13 @@ export default function SupplierPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setActionError(data.error || 'Gagal menghapus supplier');
-        if (res.status === 409 || res.status === 404) fetchSuppliers();
+        if (res.status === 409 || res.status === 404) refreshAll(true);
         return;
       }
       setConfirmAction(null);
       invalidateClientCache('suppliers');
       showToast(`"${supplier.name}" dihapus permanen`);
-      fetchSuppliers();
+      refreshAll(true);
     } catch {
       setActionError('Terjadi kesalahan pada server');
     } finally {
@@ -165,6 +172,24 @@ export default function SupplierPage() {
   const activeCount = suppliers.filter((s) => s.is_active).length;
   const inactiveCount = suppliers.length - activeCount;
   const visibleSuppliers = showInactive ? suppliers : suppliers.filter((s) => s.is_active);
+
+  const JENIS_PRIORITY: Record<string, number> = {
+    utama: 1,
+    cadangan: 2,
+    grosir: 3
+  };
+
+  const sortedSuppliers = [...visibleSuppliers].sort((a, b) => {
+    // Supplier sistem (Koreksi Stok) selalu paling bawah
+    if (a.is_adjustment && !b.is_adjustment) return 1;
+    if (!a.is_adjustment && b.is_adjustment) return -1;
+    // Urutkan jenis: Utama -> Cadangan -> Grosir
+    const prioA = a.jenis ? JENIS_PRIORITY[a.jenis] || 99 : 99;
+    const prioB = b.jenis ? JENIS_PRIORITY[b.jenis] || 99 : 99;
+    if (prioA !== prioB) return prioA - prioB;
+    // Jika jenis sama, urutkan nama secara alfabetis
+    return a.name.localeCompare(b.name, 'id');
+  });
 
   const openEditModal = (supplier: Supplier) => {
     setSelectedSupplier(supplier);
@@ -200,7 +225,7 @@ export default function SupplierPage() {
       setIsAddModalOpen(false);
       invalidateClientCache('suppliers');
       showToast('Supplier berhasil ditambahkan');
-      fetchSuppliers();
+      refreshAll(true);
     } catch {
       setErrorMessage('Terjadi kesalahan pada server');
     } finally {
@@ -240,7 +265,7 @@ export default function SupplierPage() {
       setIsEditModalOpen(false);
       invalidateClientCache('suppliers');
       showToast('Supplier berhasil diperbarui');
-      fetchSuppliers();
+      refreshAll(true);
     } catch {
       setErrorMessage('Terjadi kesalahan pada server');
     } finally {
@@ -280,16 +305,16 @@ export default function SupplierPage() {
         </div>
       )}
 
-      {/* Header Counter & Refresh */}
+      {/* Header Counter & Filter */}
       <div className="page-header-box" style={{ marginBottom: '18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
           <div
             style={{
-              padding: '6px 14px',
+              padding: '7px 16px',
               borderRadius: 'var(--radius-full)',
               background: '#FFFFFF',
               border: '1px solid #E2E8F0',
-              fontSize: '12.5px',
+              fontSize: '13px',
               fontWeight: 600,
               color: '#0F172A',
               boxShadow: 'var(--shadow-xs)'
@@ -301,7 +326,19 @@ export default function SupplierPage() {
 
           <button
             type="button"
-            onClick={() => setShowInactive(!showInactive)}
+            onClick={() => {
+              const nextState = !showInactive;
+              setShowInactive(nextState);
+              if (nextState) {
+                if (inactiveCount === 0) {
+                  showToast('Semua supplier saat ini berstatus aktif (0 nonaktif)');
+                } else {
+                  showToast(`Menampilkan ${inactiveCount} supplier nonaktif`);
+                }
+              } else {
+                showToast('Menampilkan supplier aktif saja');
+              }
+            }}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -322,24 +359,28 @@ export default function SupplierPage() {
           >
             {showInactive ? <Eye size={15} /> : <EyeOff size={15} style={{ color: '#94A3B8' }} />}
             <span>{showInactive ? 'Menampilkan Nonaktif' : 'Tampilkan Nonaktif'}</span>
+            <span
+              style={{
+                padding: '1px 7px',
+                borderRadius: 'var(--radius-full)',
+                fontSize: '11px',
+                fontWeight: 700,
+                background: showInactive ? 'rgba(255, 255, 255, 0.2)' : '#F1F5F9',
+                color: showInactive ? '#FFFFFF' : '#64748B'
+              }}
+            >
+              {inactiveCount}
+            </span>
           </button>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button
-            onClick={refreshAll}
-            className="btn btn-secondary btn-sm"
-            title="Segarkan Data"
-          >
-            <RefreshCw size={14} className={isLoading ? 'pulse' : ''} />
-            <span>Segarkan</span>
-          </button>
-
+        <div>
           <button
             onClick={() => { setAddName(''); setAddJenis(''); setErrorMessage(''); setIsAddModalOpen(true); }}
-            className="btn btn-primary btn-sm"
+            className="btn btn-primary"
+            style={{ height: '38px', padding: '0 16px', fontSize: '13.5px', display: 'inline-flex', alignItems: 'center', gap: '7px' }}
           >
-            <Plus size={14} />
+            <Plus size={15} />
             <span>Tambah supplier</span>
           </button>
         </div>
@@ -364,10 +405,25 @@ export default function SupplierPage() {
               const row = masuk.find((x) => x.jenis === j) ?? { jenis: j, total_qty: 0, transaction_count: 0 };
               const maxQty = Math.max(1, ...masuk.map((x) => x.total_qty));
               const pct = (row.total_qty / maxQty) * 100;
-              const configs: Record<SupplierJenis, { color: string; bg: string; icon: React.ReactNode }> = {
-                utama: { color: '#2563EB', bg: '#EFF6FF', icon: <Truck size={17} style={{ color: '#2563EB' }} /> },
-                cadangan: { color: '#059669', bg: '#ECFDF5', icon: <Layers size={17} style={{ color: '#059669' }} /> },
-                grosir: { color: '#7C3AED', bg: '#F5F3FF', icon: <Building2 size={17} style={{ color: '#7C3AED' }} /> }
+              const configs: Record<SupplierJenis, { color: string; bg: string; border: string; icon: React.ReactNode }> = {
+                utama: {
+                  color: '#2563EB',
+                  bg: '#EFF6FF',
+                  border: '#BFDBFE',
+                  icon: <Truck size={18} style={{ color: '#2563EB' }} />
+                },
+                cadangan: {
+                  color: '#EA580C',
+                  bg: '#FFF7ED',
+                  border: '#FED7AA',
+                  icon: <Layers size={18} style={{ color: '#EA580C' }} />
+                },
+                grosir: {
+                  color: '#7C3AED',
+                  bg: '#FAF5FF',
+                  border: '#E9D5FF',
+                  icon: <Building2 size={18} style={{ color: '#7C3AED' }} />
+                }
               };
               const cfg = configs[j];
               return (
@@ -377,33 +433,65 @@ export default function SupplierPage() {
                   style={{
                     background: '#FFFFFF',
                     border: '1px solid #E2E8F0',
-                    borderTop: `3px solid ${cfg.color}`,
+                    borderTop: `3.5px solid ${cfg.color}`,
                     borderRadius: 'var(--radius-lg)',
-                    padding: '16px 18px',
+                    padding: '18px 20px',
                     boxShadow: 'var(--shadow-xs)',
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'space-between',
-                    gap: '12px'
+                    gap: '14px'
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ width: '32px', height: '32px', borderRadius: '8px', background: cfg.bg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span
+                        style={{
+                          width: '36px',
+                          height: '36px',
+                          borderRadius: '8px',
+                          background: cfg.bg,
+                          border: `1px solid ${cfg.border}`,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                      >
                         {cfg.icon}
                       </span>
-                      <Badge type={j}>{SUPPLIER_JENIS_LABEL[j]}</Badge>
+                      <Badge
+                        type={j}
+                        style={{
+                          fontSize: '13.5px',
+                          fontWeight: 700,
+                          padding: '5px 12px',
+                          borderRadius: 'var(--radius-full)'
+                        }}
+                      >
+                        {SUPPLIER_JENIS_LABEL[j]}
+                      </Badge>
                     </div>
-                    <span style={{ fontSize: '12px', fontWeight: 600, color: '#475569', background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '3px 9px', borderRadius: 'var(--radius-full)' }}>
+                    <span
+                      style={{
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        color: '#64748B',
+                        background: '#F8FAFC',
+                        border: '1px solid #E2E8F0',
+                        padding: '4px 10px',
+                        borderRadius: 'var(--radius-full)'
+                      }}
+                    >
                       {row.transaction_count} transaksi
                     </span>
                   </div>
 
                   <div>
-                    <div style={{ fontSize: '24px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
-                      {row.total_qty.toLocaleString('id-ID')} <span style={{ fontSize: '13.5px', fontWeight: 500, color: '#64748B' }}>pcs</span>
+                    <div style={{ fontSize: '26px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+                      {row.total_qty.toLocaleString('id-ID')}{' '}
+                      <span style={{ fontSize: '14px', fontWeight: 600, color: '#64748B' }}>pcs</span>
                     </div>
-                    <p style={{ fontSize: '12.5px', color: '#64748B', margin: '4px 0 0' }}>
+                    <p style={{ fontSize: '13px', color: '#64748B', margin: '4px 0 0' }}>
                       {row.total_qty > 0 ? `${pct.toFixed(0)}% dari volume masuk tertinggi` : 'Belum ada transaksi masuk'}
                     </p>
                   </div>
@@ -436,7 +524,7 @@ export default function SupplierPage() {
             <tr>
               <th style={{ width: '32%' }}>Nama supplier</th>
               <th style={{ width: '15%' }}>Jenis</th>
-              <th style={{ width: '18%' }}>Kali barang masuk</th>
+              <th style={{ width: '18%', textAlign: 'center' }}>Kali barang masuk</th>
               <th style={{ width: '18%' }}>Terakhir masuk</th>
               <th style={{ width: '17%', textAlign: 'center' }}>Aksi</th>
             </tr>
@@ -451,15 +539,15 @@ export default function SupplierPage() {
                   </div>
                 </td>
               </tr>
-            ) : visibleSuppliers.length === 0 ? (
+            ) : sortedSuppliers.length === 0 ? (
               <tr>
                 <td colSpan={5} style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>
                   <Building2 size={32} style={{ color: '#94A3B8', margin: '0 auto 8px', display: 'block' }} />
-                  <span>{suppliers.length === 0 ? 'Belum ada supplier yang tercatat.' : 'Tidak ada supplier aktif. Centang "Tampilkan yang nonaktif" untuk melihat semuanya.'}</span>
+                  <span>{suppliers.length === 0 ? 'Belum ada supplier yang tercatat.' : 'Tidak ada supplier aktif. Klik "Tampilkan Nonaktif" untuk melihat semuanya.'}</span>
                 </td>
               </tr>
             ) : (
-              visibleSuppliers.map((item) => (
+              sortedSuppliers.map((item) => (
                 <tr key={item.id} style={item.is_active ? undefined : { opacity: 0.55, background: '#F8FAFC' }}>
                   <td>
                     <div style={{ fontWeight: 600, color: '#0F172A', fontSize: '14.5px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -477,7 +565,7 @@ export default function SupplierPage() {
                       <Badge type="neutral">Sistem</Badge>
                     )}
                   </td>
-                  <td style={{ color: '#0F172A', fontWeight: 600, fontSize: '14px' }}>
+                  <td style={{ textAlign: 'center', color: '#0F172A', fontWeight: 600, fontSize: '14px' }}>
                     {item.transaction_count ?? 0}
                   </td>
                   <td style={{ color: '#475569', fontSize: '14px' }}>
@@ -505,6 +593,7 @@ export default function SupplierPage() {
                       </span>
                     ) : (
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                        {/* 1. Ubah Supplier */}
                         <button
                           onClick={() => openEditModal(item)}
                           className="sup-icon-btn action-btn-edit"
@@ -513,6 +602,8 @@ export default function SupplierPage() {
                         >
                           <Edit2 size={15} />
                         </button>
+
+                        {/* 2. Nonaktifkan / Aktifkan */}
                         {item.is_active ? (
                           <button
                             onClick={() => openConfirm('deactivate', item)}
@@ -532,12 +623,29 @@ export default function SupplierPage() {
                             <Power size={15} />
                           </button>
                         )}
-                        {(item.transaction_count ?? 0) === 0 && (
+
+                        {/* 3. Hapus Permanen (Selalu ada 3 tombol di tiap baris agar simetris) */}
+                        {(item.transaction_count ?? 0) === 0 ? (
                           <button
                             onClick={() => openConfirm('delete', item)}
                             className="sup-icon-btn action-btn-delete"
                             disabled={busyId !== null}
-                            title="Hapus permanen (hanya untuk supplier tanpa riwayat)"
+                            title="Hapus permanen (supplier belum pernah ada transaksi)"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        ) : (
+                          <button
+                            className="sup-icon-btn action-btn-disabled"
+                            disabled
+                            style={{
+                              opacity: 0.35,
+                              cursor: 'not-allowed',
+                              background: '#F1F5F9',
+                              color: '#94A3B8',
+                              border: '1px solid #E2E8F0'
+                            }}
+                            title={`Tidak dapat dihapus: sudah ada ${item.transaction_count} riwayat transaksi`}
                           >
                             <Trash2 size={15} />
                           </button>
@@ -642,6 +750,7 @@ export default function SupplierPage() {
           <div
             style={{
               display: 'flex',
+              alignItems: 'center',
               justifyContent: 'flex-end',
               gap: '10px',
               marginTop: '20px',
@@ -653,6 +762,7 @@ export default function SupplierPage() {
               type="button"
               className="btn btn-secondary"
               onClick={() => setIsEditModalOpen(false)}
+              style={{ height: '40px', padding: '0 16px', fontSize: '13.5px' }}
             >
               Batal
             </button>
@@ -660,6 +770,7 @@ export default function SupplierPage() {
               type="submit"
               className="btn btn-primary"
               disabled={isSaving}
+              style={{ height: '40px', padding: '0 18px', fontSize: '13.5px' }}
             >
               {isSaving ? 'Menyimpan...' : 'Simpan Perubahan'}
             </button>
