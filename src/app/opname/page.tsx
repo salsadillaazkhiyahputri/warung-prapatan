@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Modal } from '@/components/ui/Modal';
 import { Badge, BadgeType } from '@/components/ui/Badge';
 import { DEFAULT_CATEGORY, KeluarPerHariRow, OpnameDetail, OpnameItemJenis, OpnameSession, Product } from '@/types';
 import { formatDateOnly, formatDateTime } from '@/lib/export-utils';
 import { isCountStale, relativeDayLabel } from '@/lib/stock-labels';
-import { AlertCircle, ClipboardCheck, Eye, Filter, Info, RefreshCw, RotateCcw, TrendingDown } from 'lucide-react';
+import { AlertCircle, ClipboardCheck, Eye, Filter, Info, RefreshCw, RotateCcw, TrendingDown, Calendar } from 'lucide-react';
 import { getClientCache, setClientCache } from '@/lib/client-cache';
 
 type Tab = 'sesi' | 'keluar';
@@ -55,9 +55,9 @@ export default function OpnamePage() {
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState('');
 
-  const fetchSessions = async () => {
+  const fetchSessions = useCallback(async (silent = false) => {
     const isDefault = !startDate && !endDate && productId === 'all';
-    if (sessions.length === 0) setIsLoading(true);
+    if (!silent && sessions.length === 0) setIsLoading(true);
     setLoadError('');
     try {
       const params = new URLSearchParams();
@@ -76,12 +76,12 @@ export default function OpnamePage() {
     } catch {
       setLoadError('Terjadi kesalahan pada server');
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
-  };
+  }, [startDate, endDate, productId, sessions.length]);
 
-  const fetchKeluar = async () => {
-    setIsKeluarLoading(true);
+  const fetchKeluar = useCallback(async (silent = false) => {
+    if (!silent) setIsKeluarLoading(true);
     setKeluarError('');
     try {
       const params = new URLSearchParams();
@@ -100,30 +100,51 @@ export default function OpnamePage() {
     } catch {
       setKeluarError('Terjadi kesalahan pada server');
     } finally {
-      setIsKeluarLoading(false);
+      if (!silent) setIsKeluarLoading(false);
     }
-  };
+  }, [kStart, kEnd, kCategory]);
 
   useEffect(() => {
     fetch('/api/products')
       .then((r) => (r.ok ? r.json() : []))
-      .then(setProducts)
+      .then((data) => {
+        setProducts(data);
+        setClientCache('products:all', data);
+      })
       .catch(() => setProducts([]));
     fetch('/api/products/categories')
       .then((r) => (r.ok ? r.json() : [DEFAULT_CATEGORY]))
-      .then(setCategories)
+      .then((data) => {
+        setCategories(data);
+        setClientCache('products:categories', data);
+      })
       .catch(() => setCategories([DEFAULT_CATEGORY]));
   }, []);
 
   useEffect(() => {
     if (tab === 'keluar') fetchKeluar();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, kStart, kEnd, kCategory]);
+  }, [tab, fetchKeluar]);
 
   useEffect(() => {
     fetchSessions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startDate, endDate, productId]);
+  }, [fetchSessions]);
+
+  useEffect(() => {
+    // Auto-refresh setiap 25 detik & saat tab kembali aktif
+    const interval = setInterval(() => {
+      if (tab === 'sesi') fetchSessions(true);
+      else fetchKeluar(true);
+    }, 25000);
+    const handleFocus = () => {
+      if (tab === 'sesi') fetchSessions(true);
+      else fetchKeluar(true);
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [tab, fetchSessions, fetchKeluar]);
 
   const openDetail = async (id: number) => {
     setIsDetailOpen(true);
@@ -195,10 +216,6 @@ export default function OpnamePage() {
           >
             Total <strong>{sessions.length}</strong> Sesi Opname
           </div>
-          <button onClick={fetchSessions} className="btn btn-secondary btn-sm" title="Segarkan Data">
-            <RefreshCw size={14} className={isLoading ? 'pulse' : ''} />
-            <span>Segarkan</span>
-          </button>
         </div>
       </div>
 
@@ -315,18 +332,14 @@ export default function OpnamePage() {
               {categories.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button onClick={fetchKeluar} className="btn btn-secondary btn-sm" style={{ height: '38px' }}>
-              <RefreshCw size={14} className={isKeluarLoading ? 'pulse' : ''} />
-              <span>Segarkan</span>
-            </button>
-            {(kStart || kEnd || kCategory !== 'Semua') && (
+          {(kStart || kEnd || kCategory !== 'Semua') && (
+            <div>
               <button onClick={() => { setKStart(''); setKEnd(''); setKCategory('Semua'); }} className="btn btn-secondary btn-sm" style={{ height: '38px' }}>
                 <RotateCcw size={12} />
-                <span>Reset</span>
+                <span>Reset Filter</span>
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
         <p style={{ fontSize: '12px', color: '#64748B', margin: '12px 0 0' }}>
           {keluarRange ? `${formatDateOnly(keluarRange.startDate)} – ${formatDateOnly(keluarRange.endDate)}` : '30 hari terakhir'}
