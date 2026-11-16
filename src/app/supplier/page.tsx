@@ -1,14 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Modal } from '@/components/ui/Modal';
 import { Supplier } from '@/types';
 import { formatDateOnly } from '@/lib/export-utils';
 import {
-  Truck,
   Edit2,
-  Info,
   CheckCircle2,
   AlertCircle,
   RefreshCw,
@@ -18,14 +16,18 @@ import {
 export default function SupplierPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Modals state
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
+
+  // Form states
   const [editName, setEditName] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
-  const fetchSuppliers = async () => {
+  const fetchSuppliers = useCallback(async () => {
     setIsLoading(true);
     try {
       const res = await fetch('/api/suppliers');
@@ -38,17 +40,21 @@ export default function SupplierPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchSuppliers();
-  }, []);
+    const timer = setTimeout(() => {
+      fetchSuppliers();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [fetchSuppliers]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(''), 3000);
   };
 
+  // Edit Supplier
   const openEditModal = (supplier: Supplier) => {
     setSelectedSupplier(supplier);
     setEditName(supplier.name);
@@ -82,7 +88,7 @@ export default function SupplierPage() {
       }
 
       setIsEditModalOpen(false);
-      showToast(`Nama supplier berhasil diperbarui`);
+      showToast('Nama supplier berhasil diperbarui');
       fetchSuppliers();
     } catch {
       setErrorMessage('Terjadi kesalahan pada server');
@@ -123,7 +129,7 @@ export default function SupplierPage() {
         </div>
       )}
 
-      {/* Header Counter & Refresh */}
+      {/* Header Counter & Refresh (Sesuai Proposal Gambar 21) */}
       <div className="page-header-box" style={{ marginBottom: '18px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div
@@ -152,7 +158,7 @@ export default function SupplierPage() {
         </div>
       </div>
 
-      {/* Tabel Data Supplier Sesuai Proposal */}
+      {/* Tabel Data Supplier Sesuai Proposal Gambar 21 */}
       <div className="table-container">
         <table className="data-table">
           <thead>
@@ -192,7 +198,7 @@ export default function SupplierPage() {
                     {item.transaction_count ?? 0}
                   </td>
                   <td style={{ color: '#475569', fontSize: '13.5px' }}>
-                    {item.last_restock_date ? formatDateOnly(item.last_restock_date) : '-'}
+                    {item.last_restock_date ? formatDateOnly(item.last_restock_date) : '—'}
                   </td>
                   <td style={{ textAlign: 'center' }}>
                     <button
@@ -221,7 +227,7 @@ export default function SupplierPage() {
         </table>
       </div>
 
-      {/* Modal Edit Nama Supplier */}
+      {/* MODAL: Modal Edit Nama Supplier (Sesuai Activity Diagram Gambar 14) */}
       <Modal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
@@ -256,7 +262,7 @@ export default function SupplierPage() {
               className="form-input"
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
-              placeholder="Contoh: PT Unilever Indonesia"
+              placeholder="Contoh: Unilever"
               required
             />
           </div>
@@ -288,6 +294,14 @@ export default function SupplierPage() {
           </div>
         </form>
       </Modal>
+
+      <style jsx global>{`
+        .action-btn-edit:hover {
+          background: #0F172A !important;
+          color: #FFFFFF !important;
+          border-color: #0F172A !important;
+        }
+      `}</style>
     </DashboardLayout>
   );
 }
