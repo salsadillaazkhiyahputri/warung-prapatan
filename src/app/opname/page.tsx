@@ -32,3 +32,41 @@ export default function OpnamePage() {
   const [productId, setProductId] = useState('all');
 
   const [tab, setTab] = useState<Tab>('sesi');
+
+  // Tab 2: rata-rata keluar per hari
+  const [kStart, setKStart] = useState('');
+  const [kEnd, setKEnd] = useState('');
+  const [kCategory, setKCategory] = useState('Semua');
+  const [categories, setCategories] = useState<string[]>([DEFAULT_CATEGORY]);
+  const [keluarRows, setKeluarRows] = useState<KeluarPerHariRow[]>([]);
+  const [keluarRange, setKeluarRange] = useState<{ startDate: string; endDate: string } | null>(null);
+  const [isKeluarLoading, setIsKeluarLoading] = useState(false);
+  const [keluarError, setKeluarError] = useState('');
+
+  const [detail, setDetail] = useState<OpnameDetail | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isDetailLoading, setIsDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState('');
+
+  const fetchSessions = async () => {
+    setIsLoading(true);
+    setLoadError('');
+    try {
+      const params = new URLSearchParams();
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
+      if (productId !== 'all') params.append('productId', productId);
+      const res = await fetch(`/api/opname?${params.toString()}`);
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setSessions([]);
+        setLoadError(data?.error || 'Gagal memuat riwayat stok opname');
+        return;
+      }
+      setSessions(data);
+    } catch {
+      setLoadError('Terjadi kesalahan pada server');
+    } finally {
+      setIsLoading(false);
+    }
+  };
