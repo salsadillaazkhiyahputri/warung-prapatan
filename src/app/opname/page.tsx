@@ -255,7 +255,97 @@ export default function OpnamePage() {
         </span>
       </div>
 
-      {/* Segmented Tab Bar */}
+      {/* Filter Card di paling atas (Sesuai Permintaan Ditukar dengan Tab) */}
+      {tab === 'sesi' ? (
+        <div className="card" style={{ marginBottom: '20px', padding: '20px 24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Filter size={16} style={{ color: '#0F172A' }} />
+              <h4 style={{ fontSize: '14.5px', fontWeight: 700, color: '#0F172A', margin: 0 }}>Filter Riwayat Opname</h4>
+            </div>
+            {hasFilter && (
+              <button
+                onClick={() => { setStartDate(''); setEndDate(''); setProductId('all'); }}
+                className="btn btn-secondary btn-sm"
+                style={{ height: '32px', fontSize: '12.5px', padding: '0 12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              >
+                <RotateCcw size={13} />
+                <span>Reset Filter</span>
+              </button>
+            )}
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+            {renderDateInput('Dari Tanggal', startDate, setStartDate, endDate || undefined)}
+            {renderDateInput('Sampai Tanggal', endDate, setEndDate, undefined, startDate || undefined)}
+            <div>
+              <label className="form-label" style={labelStyle}>
+                <Filter size={14} style={{ color: '#64748B' }} />
+                <span>Produk</span>
+              </label>
+              <select
+                className="form-select"
+                style={{ height: '42px', fontSize: '14px', borderRadius: '8px' }}
+                value={productId}
+                onChange={(e) => setProductId(e.target.value)}
+              >
+                <option value="all">Semua Produk</option>
+                {products.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="card" style={{ marginBottom: '20px', padding: '20px 24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <TrendingDown size={16} style={{ color: '#0F172A' }} />
+                <h4 style={{ fontSize: '14.5px', fontWeight: 700, color: '#0F172A', margin: 0 }}>Filter Analisis Barang Keluar</h4>
+              </div>
+              <p style={{ fontSize: '12.5px', color: '#64748B', margin: '4px 0 0' }}>
+                {keluarRange ? `${formatDateOnly(keluarRange.startDate)} – ${formatDateOnly(keluarRange.endDate)}` : '30 hari terakhir'} · Rata-rata dihitung dari total keluar ÷ jumlah hari antar-hitungan
+              </p>
+            </div>
+            {(kStart || kEnd || kCategory !== 'Semua') && (
+              <button
+                onClick={() => { setKStart(''); setKEnd(''); setKCategory('Semua'); }}
+                className="btn btn-secondary btn-sm"
+                style={{ height: '32px', fontSize: '12.5px', padding: '0 12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              >
+                <RotateCcw size={13} />
+                <span>Reset Filter</span>
+              </button>
+            )}
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+            {renderDateInput('Dari Tanggal', kStart || keluarRange?.startDate || '', setKStart, kEnd || undefined)}
+            {renderDateInput('Sampai Tanggal', kEnd || keluarRange?.endDate || '', setKEnd, undefined, kStart || undefined)}
+            <div>
+              <label className="form-label" style={labelStyle}>
+                <Filter size={14} style={{ color: '#64748B' }} />
+                <span>Kategori Produk</span>
+              </label>
+              <select
+                className="form-select"
+                style={{ height: '42px', fontSize: '14px', borderRadius: '8px' }}
+                value={kCategory}
+                onChange={(e) => setKCategory(e.target.value)}
+              >
+                <option value="Semua">Semua Kategori</option>
+                {categories.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Segmented Tab Bar (Sekarang Berada di Bawah Filter) */}
       <div
         style={{
           display: 'inline-flex',
@@ -327,51 +417,7 @@ export default function OpnamePage() {
       </div>
 
       {tab === 'sesi' && (
-        <>
-          {/* Filter Card - Riwayat Sesi */}
-          <div className="card" style={{ marginBottom: '22px', padding: '20px 24px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Filter size={16} style={{ color: '#0F172A' }} />
-                <h4 style={{ fontSize: '14.5px', fontWeight: 700, color: '#0F172A', margin: 0 }}>Filter Riwayat Opname</h4>
-              </div>
-              {hasFilter && (
-                <button
-                  onClick={() => { setStartDate(''); setEndDate(''); setProductId('all'); }}
-                  className="btn btn-secondary btn-sm"
-                  style={{ height: '32px', fontSize: '12.5px', padding: '0 12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                >
-                  <RotateCcw size={13} />
-                  <span>Reset Filter</span>
-                </button>
-              )}
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
-              {renderDateInput('Dari Tanggal', startDate, setStartDate, endDate || undefined)}
-              {renderDateInput('Sampai Tanggal', endDate, setEndDate, undefined, startDate || undefined)}
-              <div>
-                <label className="form-label" style={labelStyle}>
-                  <Filter size={14} style={{ color: '#64748B' }} />
-                  <span>Produk</span>
-                </label>
-                <select
-                  className="form-select"
-                  style={{ height: '42px', fontSize: '14px', borderRadius: '8px' }}
-                  value={productId}
-                  onChange={(e) => setProductId(e.target.value)}
-                >
-                  <option value="all">Semua Produk</option>
-                  {products.map((p) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Tabel Riwayat Sesi */}
-          <div className="table-container">
+        <div className="table-container">
             <table className="data-table">
               <thead>
                 <tr>
@@ -452,59 +498,10 @@ export default function OpnamePage() {
               </tbody>
             </table>
           </div>
-        </>
       )}
 
       {tab === 'keluar' && (
-        <>
-          {/* Filter Card - Rata-rata Keluar */}
-          <div className="card" style={{ marginBottom: '22px', padding: '20px 24px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <TrendingDown size={16} style={{ color: '#0F172A' }} />
-                  <h4 style={{ fontSize: '14.5px', fontWeight: 700, color: '#0F172A', margin: 0 }}>Filter Analisis Barang Keluar</h4>
-                </div>
-                <p style={{ fontSize: '12.5px', color: '#64748B', margin: '4px 0 0' }}>
-                  {keluarRange ? `${formatDateOnly(keluarRange.startDate)} – ${formatDateOnly(keluarRange.endDate)}` : '30 hari terakhir'} · Rata-rata dihitung dari total keluar ÷ jumlah hari antar-hitungan
-                </p>
-              </div>
-              {(kStart || kEnd || kCategory !== 'Semua') && (
-                <button
-                  onClick={() => { setKStart(''); setKEnd(''); setKCategory('Semua'); }}
-                  className="btn btn-secondary btn-sm"
-                  style={{ height: '32px', fontSize: '12.5px', padding: '0 12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                >
-                  <RotateCcw size={13} />
-                  <span>Reset Filter</span>
-                </button>
-              )}
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
-              {renderDateInput('Dari Tanggal', kStart || keluarRange?.startDate || '', setKStart, kEnd || undefined)}
-              {renderDateInput('Sampai Tanggal', kEnd || keluarRange?.endDate || '', setKEnd, undefined, kStart || undefined)}
-              <div>
-                <label className="form-label" style={labelStyle}>
-                  <Filter size={14} style={{ color: '#64748B' }} />
-                  <span>Kategori Produk</span>
-                </label>
-                <select
-                  className="form-select"
-                  style={{ height: '42px', fontSize: '14px', borderRadius: '8px' }}
-                  value={kCategory}
-                  onChange={(e) => setKCategory(e.target.value)}
-                >
-                  <option value="Semua">Semua Kategori</option>
-                  {categories.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Tabel Rata-rata Keluar */}
+          /* Tabel Rata-rata Keluar */
           <div className="table-container">
             <table className="data-table">
               <thead>
@@ -584,7 +581,6 @@ export default function OpnamePage() {
               </tbody>
             </table>
           </div>
-        </>
       )}
 
       {/* Modal Detail Opname */}
