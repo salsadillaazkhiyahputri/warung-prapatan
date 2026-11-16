@@ -6,8 +6,9 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const q = searchParams.get('q') || undefined;
     const category = searchParams.get('category') || undefined;
+    const status = (searchParams.get('status') as 'all' | 'low' | 'safe' | 'empty') || undefined;
 
-    const products = await ProductService.getAll(q, category);
+    const products = await ProductService.getAll(q, category, status);
     return NextResponse.json(products);
   } catch (error) {
     console.error('Error fetching products:', error);
