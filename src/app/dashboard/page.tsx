@@ -6,6 +6,7 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { StatCard } from '@/components/ui/StatCard';
 import { Badge } from '@/components/ui/Badge';
 import { DashboardStats } from '@/types';
+import { getClientCache, setClientCache } from '@/lib/client-cache';
 import {
   Package,
   ClipboardCheck,
@@ -18,16 +19,21 @@ import {
 } from 'lucide-react';
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [stats, setStats] = useState<DashboardStats | null>(() => {
+    return getClientCache<DashboardStats>('dashboard:stats') || null;
+  });
+  const [isLoading, setIsLoading] = useState(() => {
+    return !getClientCache<DashboardStats>('dashboard:stats');
+  });
 
   const fetchStats = async () => {
-    setIsLoading(true);
+    if (!stats) setIsLoading(true);
     try {
       const res = await fetch('/api/dashboard/stats');
       if (res.ok) {
         const data = await res.json();
         setStats(data);
+        setClientCache('dashboard:stats', data);
       }
     } catch (err) {
       console.error('Gagal memuat statistik:', err);
