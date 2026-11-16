@@ -137,7 +137,8 @@ export const AuthService = {
 // PRODUCT SERVICE (Sesuai Class Diagram Bab 2.2.4)
 // ============================================================================
 export const ProductService = {
-  async getAll(query?: string, category?: string): Promise<Product[]> {
+  async getAll(query?: string, category?: string, status?: 'all' | 'low' | 'safe' | 'empty'): Promise<Product[]> {
+    let prods: Product[] = [];
     if (isSupabaseConfigured && supabaseAdmin) {
       try {
         let builder = supabaseAdmin.from('products').select('*').order('name', { ascending: true });
@@ -148,22 +149,38 @@ export const ProductService = {
           builder = builder.ilike('name', `%${query}%`);
         }
         const { data, error } = await builder;
-        if (!error && data) return (data as Product[]).map(normalizeProduct);
+        if (!error && data) {
+          prods = (data as Product[]).map(normalizeProduct);
+        }
       } catch (err) {
         console.warn('Supabase query produk gagal, gunakan data lokal:', err);
       }
     }
 
-    const db = readLocalDb();
-    let list = [...db.products];
-    if (category && category !== 'Semua') {
-      list = list.filter(p => p.category.toLowerCase() === category.toLowerCase());
+    if (prods.length === 0) {
+      const db = readLocalDb();
+      let list = [...db.products];
+      if (category && category !== 'Semua') {
+        list = list.filter(p => p.category.toLowerCase() === category.toLowerCase());
+      }
+      if (query) {
+        const q = query.toLowerCase();
+        list = list.filter(p => p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q));
+      }
+      prods = list.map(normalizeProduct);
     }
-    if (query) {
-      const q = query.toLowerCase();
-      list = list.filter(p => p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q));
+
+    if (status && status !== 'all') {
+      if (status === 'low') {
+        prods = prods.filter(p => p.stock_current <= p.stock_minimum && p.stock_current > 0);
+      } else if (status === 'empty') {
+        prods = prods.filter(p => p.stock_current === 0);
+      } else if (status === 'safe') {
+        prods = prods.filter(p => p.stock_current > p.stock_minimum);
+      }
     }
-    return list.map(normalizeProduct).sort((a, b) => a.name.localeCompare(b.name));
+
+    return prods.sort((a, b) => a.name.localeCompare(b.name));
   },
 
   async getById(id: number): Promise<Product | null> {
@@ -299,7 +316,7 @@ export const ProductService = {
 // SUPPLIER SERVICE (Sesuai Class Diagram Bab 2.2.4 & Gambar 21)
 // ============================================================================
 export const SupplierService = {
-  async getAll(): Promise<Supplier[]> {
+  async getAll(query?: string): Promise<Supplier[]> {
     let suppliers: Supplier[] = [];
     let transactions: Transaction[] = [];
 
@@ -336,6 +353,9 @@ export const SupplierService = {
         transaction_count: count,
         last_restock_date: lastDate
       };
+    }).filter(s => {
+      if (!query) return true;
+      return s.name.toLowerCase().includes(query.toLowerCase());
     }).sort((a, b) => a.name.localeCompare(b.name));
   },
 
@@ -435,6 +455,7 @@ export const TransactionService = {
     endDate?: string;
     productId?: number;
     type?: TransactionType | 'all';
+    q?: string;
   }): Promise<Transaction[]> {
     let transactions: Transaction[] = [];
     const products = await ProductService.getAll();
@@ -464,17 +485,17 @@ export const TransactionService = {
 
         const { data, error } = await builder;
         if (!error && data) {
-          return data.map((t: any) => ({
-            id: t.id,
-            product_id: t.product_id,
-            user_id: t.user_id,
-            supplier_id: t.supplier_id,
-            type: t.type,
-            qty: t.qty,
-            note: t.note,
-            created_at: t.created_at,
-            product: t.products,
-            supplier: t.suppliers
+          return data.map((t: Record<string, unknown>) => ({
+            id: t.id as number,
+            product_id: t.product_id as number,
+            user_id: t.user_id as string,
+            supplier_id: t.supplier_id as number | null,
+            type: t.type as TransactionType,
+            qty: t.qty as number,
+            note: (t.note as string) || null,
+            created_at: t.created_at as string,
+            product: t.products as Product | undefined,
+            supplier: t.suppliers as Supplier | undefined
           }));
         }
       } catch (err) {
@@ -503,12 +524,20 @@ export const TransactionService = {
     }
 
     // Join dengan tabel products dan suppliers
-    const joined = transactions.map(t => ({
+    let joined = transactions.map(t => ({
       ...t,
       product: products.find(p => p.id === t.product_id),
       supplier: t.supplier_id ? suppliers.find(s => s.id === t.supplier_id) : undefined
     }));
 
+    if (filters?.q) {
+      const qLower = filters.q.toLowerCase();
+      joined = joined.filter(t => 
+        (t.product?.name && t.product.name.toLowerCase().includes(qLower)) ||
+        (t.supplier?.name && t.supplier.name.toLowerCase().includes(qLower)) ||
+        (t.note && t.note.toLowerCase().includes(qLower))
+      );
+    }
     return joined.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   },
 
