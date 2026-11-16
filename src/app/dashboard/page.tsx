@@ -38,9 +38,9 @@ export default function DashboardPage() {
     } catch (err) {
       console.error('Gagal memuat statistik:', err);
     } finally {
-      if (!silent) setIsLoading(false);
+      setIsLoading(false);
     }
-  }, [stats]);
+  }, []);
 
   useEffect(() => {
     fetchStats(true);
