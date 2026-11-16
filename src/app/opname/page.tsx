@@ -169,253 +169,459 @@ export default function OpnamePage() {
   const hasFilter = startDate || endDate || productId !== 'all';
   const selectedProductId = productId !== 'all' ? Number(productId) : null;
 
+  const renderDateInput = (
+    label: string,
+    value: string,
+    onChange: (val: string) => void,
+    max?: string,
+    min?: string
+  ) => {
+    return (
+      <div>
+        <label className="form-label" style={labelStyle}>
+          <Calendar size={14} style={{ color: '#64748B' }} />
+          <span>{label}</span>
+        </label>
+        <div style={{ position: 'relative' }}>
+          <input
+            type="text"
+            readOnly
+            value={value ? (() => {
+              const [y, m, d] = value.split('-');
+              return `${d}/${m}/${y}`;
+            })() : ''}
+            className="form-input"
+            placeholder="dd/mm/yyyy"
+            style={{
+              paddingRight: '38px',
+              cursor: 'pointer',
+              background: '#FFFFFF',
+              height: '42px',
+              fontSize: '14px',
+              borderRadius: '8px'
+            }}
+            onClick={(e) => {
+              const dateInput = e.currentTarget.nextElementSibling as HTMLInputElement;
+              if (dateInput) {
+                if ('showPicker' in HTMLInputElement.prototype) {
+                  dateInput.showPicker();
+                } else {
+                  dateInput.focus();
+                }
+              }
+            }}
+          />
+          <input
+            type="date"
+            value={value}
+            max={max || undefined}
+            min={min || undefined}
+            onChange={(e) => onChange(e.target.value)}
+            style={{
+              position: 'absolute',
+              opacity: 0,
+              pointerEvents: 'none',
+              width: '100%',
+              height: '100%',
+              top: 0,
+              left: 0
+            }}
+          />
+          <Calendar
+            size={16}
+            style={{
+              position: 'absolute',
+              right: '12px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              color: '#64748B',
+              pointerEvents: 'none'
+            }}
+          />
+        </div>
+      </div>
+    );
+  };
+
   return (
     <DashboardLayout
       title="Stok Opname"
       subtitle="Riwayat hitung fisik stok. Barang keluar dihitung dari selisih stok sistem dan hitungan."
     >
-      <div className="info-callout">
+      <div className="info-callout" style={{ marginBottom: '18px' }}>
         <Info size={17} style={{ color: '#0F172A', flexShrink: 0 }} />
         <span>
-          Opname dicatat lewat Telegram. Halaman ini hanya menampilkan riwayat dan tidak bisa menambah atau mengubah opname.
+          Opname dicatat lewat Telegram. Halaman ini hanya menampilkan riwayat hitungan fisik dan tidak bisa menambah atau mengubah opname.
         </span>
       </div>
 
-      <div role="tablist" style={{ display: 'flex', gap: '4px', borderBottom: '1px solid #E2E8F0', marginBottom: '18px' }}>
-        {([['sesi', 'Riwayat sesi'], ['keluar', 'Rata-rata keluar per hari']] as [Tab, string][]).map(([key, label]) => (
-          <button
-            key={key}
-            role="tab"
-            aria-selected={tab === key}
-            onClick={() => setTab(key)}
+      {/* Segmented Tab Bar */}
+      <div
+        style={{
+          display: 'inline-flex',
+          background: '#F1F5F9',
+          padding: '4px',
+          borderRadius: 'var(--radius-md)',
+          marginBottom: '20px',
+          gap: '4px',
+          border: '1px solid #E2E8F0'
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => setTab('sesi')}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px 18px',
+            borderRadius: 'var(--radius-sm)',
+            fontSize: '13.5px',
+            fontWeight: tab === 'sesi' ? 700 : 500,
+            background: tab === 'sesi' ? '#FFFFFF' : 'transparent',
+            color: tab === 'sesi' ? '#0F172A' : '#64748B',
+            border: tab === 'sesi' ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid transparent',
+            boxShadow: tab === 'sesi' ? 'var(--shadow-xs)' : 'none',
+            cursor: 'pointer',
+            transition: 'all var(--transition-fast)'
+          }}
+        >
+          <ClipboardCheck size={16} style={{ color: tab === 'sesi' ? '#0F172A' : '#94A3B8' }} />
+          <span>Riwayat Sesi Opname</span>
+          <span
             style={{
-              padding: '9px 14px',
-              fontSize: '13px',
-              fontWeight: tab === key ? 700 : 500,
-              color: tab === key ? '#0F172A' : '#64748B',
-              background: 'transparent',
-              border: 'none',
-              borderBottom: `2px solid ${tab === key ? '#0F172A' : 'transparent'}`,
-              marginBottom: '-1px',
-              cursor: 'pointer'
+              padding: '1px 8px',
+              borderRadius: 'var(--radius-full)',
+              fontSize: '11px',
+              fontWeight: 700,
+              background: tab === 'sesi' ? '#0F172A' : '#E2E8F0',
+              color: tab === 'sesi' ? '#FFFFFF' : '#475569'
             }}
           >
-            {label}
-          </button>
-        ))}
+            {sessions.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setTab('keluar')}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px 18px',
+            borderRadius: 'var(--radius-sm)',
+            fontSize: '13.5px',
+            fontWeight: tab === 'keluar' ? 700 : 500,
+            background: tab === 'keluar' ? '#FFFFFF' : 'transparent',
+            color: tab === 'keluar' ? '#0F172A' : '#64748B',
+            border: tab === 'keluar' ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid transparent',
+            boxShadow: tab === 'keluar' ? 'var(--shadow-xs)' : 'none',
+            cursor: 'pointer',
+            transition: 'all var(--transition-fast)'
+          }}
+        >
+          <TrendingDown size={16} style={{ color: tab === 'keluar' ? '#0F172A' : '#94A3B8' }} />
+          <span>Rata-rata Keluar per Hari</span>
+        </button>
       </div>
 
-      {tab === 'sesi' && (<>
-      <div className="page-header-box" style={{ marginBottom: '18px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div
-            style={{
-              padding: '6px 14px', borderRadius: 'var(--radius-full)', background: '#FFFFFF',
-              border: '1px solid #E2E8F0', fontSize: '12.5px', fontWeight: 600, color: '#0F172A', boxShadow: 'var(--shadow-xs)'
-            }}
-          >
-            Total <strong>{sessions.length}</strong> Sesi Opname
-          </div>
-        </div>
-      </div>
-
-      <div className="card" style={{ marginBottom: '22px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Filter size={15} style={{ color: '#0F172A' }} />
-            <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', margin: 0 }}>Filter Opname</h4>
-          </div>
-          {hasFilter && (
-            <button
-              onClick={() => { setStartDate(''); setEndDate(''); setProductId('all'); }}
-              className="btn btn-secondary btn-sm"
-              style={{ height: '30px', fontSize: '12px', padding: '0 12px' }}
-            >
-              <RotateCcw size={12} />
-              <span>Reset Filter</span>
-            </button>
-          )}
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-          <div>
-            <label className="form-label" style={labelStyle}>Dari Tanggal</label>
-            <input type="date" className="form-input" style={{ height: '38px', fontSize: '13px' }}
-              value={startDate} max={endDate || undefined} onChange={(e) => setStartDate(e.target.value)} />
-          </div>
-          <div>
-            <label className="form-label" style={labelStyle}>Sampai Tanggal</label>
-            <input type="date" className="form-input" style={{ height: '38px', fontSize: '13px' }}
-              value={endDate} min={startDate || undefined} onChange={(e) => setEndDate(e.target.value)} />
-          </div>
-          <div>
-            <label className="form-label" style={labelStyle}>Produk</label>
-            <select className="form-select" style={{ height: '38px', fontSize: '13px' }}
-              value={productId} onChange={(e) => setProductId(e.target.value)}>
-              <option value="all">Semua Produk</option>
-              {products.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
-
-      <div className="table-container">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th style={{ width: '24%' }}>Tanggal</th>
-              <th style={{ width: '20%' }}>Pengguna</th>
-              <th style={{ width: '16%', textAlign: 'right' }}>Jumlah produk</th>
-              <th>Catatan</th>
-              <th style={{ width: '90px', textAlign: 'center' }}>Aksi</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              <tr>
-                <td colSpan={5} style={{ textAlign: 'center', padding: '36px', color: '#94A3B8' }}>Memuat riwayat opname...</td>
-              </tr>
-            ) : loadError ? (
-              <tr>
-                <td colSpan={5} style={{ textAlign: 'center', padding: '36px', color: '#DC2626' }}>
-                  <AlertCircle size={22} style={{ margin: '0 auto 6px', display: 'block' }} />
-                  {loadError}
-                </td>
-              </tr>
-            ) : sessions.length === 0 ? (
-              <tr>
-                <td colSpan={5} style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>
-                  <ClipboardCheck size={32} style={{ color: '#94A3B8', margin: '0 auto 8px', display: 'block' }} />
-                  Belum ada stok opname yang sesuai filter.
-                </td>
-              </tr>
-            ) : (
-              sessions.map((s) => (
-                <tr key={s.id}>
-                  <td style={{ color: '#0F172A', fontSize: '13px', fontWeight: 600 }}>{formatDateTime(s.created_at)}</td>
-                  <td style={{ color: '#475569', fontSize: '13px' }}>{s.username ?? '-'}</td>
-                  <td style={{ textAlign: 'right', fontSize: '13.5px', color: '#0F172A' }}>{s.item_count}</td>
-                  <td style={{ color: '#475569', fontSize: '13px' }}>{s.note || <span style={{ color: '#94A3B8' }}>-</span>}</td>
-                  <td style={{ textAlign: 'center' }}>
-                    <button onClick={() => openDetail(s.id)} className="btn btn-secondary btn-sm" title="Lihat detail">
-                      <Eye size={13} />
-                      <span>Detail</span>
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      </>)}
-
-      {tab === 'keluar' && (<>
-      <div className="card" style={{ marginBottom: '22px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', alignItems: 'end' }}>
-          <div>
-            <label className="form-label" style={labelStyle}>Dari Tanggal</label>
-            <input type="date" className="form-input" style={{ height: '38px', fontSize: '13px' }}
-              value={kStart || keluarRange?.startDate || ''} max={kEnd || undefined} onChange={(e) => setKStart(e.target.value)} />
-          </div>
-          <div>
-            <label className="form-label" style={labelStyle}>Sampai Tanggal</label>
-            <input type="date" className="form-input" style={{ height: '38px', fontSize: '13px' }}
-              value={kEnd || keluarRange?.endDate || ''} min={kStart || undefined} onChange={(e) => setKEnd(e.target.value)} />
-          </div>
-          <div>
-            <label className="form-label" style={labelStyle}>Kategori</label>
-            <select className="form-select" style={{ height: '38px', fontSize: '13px' }} value={kCategory} onChange={(e) => setKCategory(e.target.value)}>
-              <option value="Semua">Semua Kategori</option>
-              {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
-          {(kStart || kEnd || kCategory !== 'Semua') && (
-            <div>
-              <button onClick={() => { setKStart(''); setKEnd(''); setKCategory('Semua'); }} className="btn btn-secondary btn-sm" style={{ height: '38px' }}>
-                <RotateCcw size={12} />
-                <span>Reset Filter</span>
-              </button>
+      {tab === 'sesi' && (
+        <>
+          {/* Filter Card - Riwayat Sesi */}
+          <div className="card" style={{ marginBottom: '22px', padding: '20px 24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Filter size={16} style={{ color: '#0F172A' }} />
+                <h4 style={{ fontSize: '14.5px', fontWeight: 700, color: '#0F172A', margin: 0 }}>Filter Riwayat Opname</h4>
+              </div>
+              {hasFilter && (
+                <button
+                  onClick={() => { setStartDate(''); setEndDate(''); setProductId('all'); }}
+                  className="btn btn-secondary btn-sm"
+                  style={{ height: '32px', fontSize: '12.5px', padding: '0 12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <RotateCcw size={13} />
+                  <span>Reset Filter</span>
+                </button>
+              )}
             </div>
-          )}
-        </div>
-        <p style={{ fontSize: '12px', color: '#64748B', margin: '12px 0 0' }}>
-          {keluarRange ? `${formatDateOnly(keluarRange.startDate)} – ${formatDateOnly(keluarRange.endDate)}` : '30 hari terakhir'}
-          {' · '}rata-rata = total keluar ÷ total hari antar hitungan. Hitung pertama (baseline) tidak dihitung.
-        </p>
-      </div>
 
-      <div className="table-container">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Produk</th>
-              <th>Kategori</th>
-              <th style={{ textAlign: 'right' }}>Rata / hari</th>
-              <th style={{ textAlign: 'right' }}>Total keluar</th>
-              <th style={{ textAlign: 'right' }}>Jumlah hari</th>
-              <th>Terakhir dihitung</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isKeluarLoading && keluarRows.length === 0 ? (
-              <tr><td colSpan={6} style={{ textAlign: 'center', padding: '32px', color: '#94A3B8' }}>Menghitung...</td></tr>
-            ) : keluarError ? (
-              <tr><td colSpan={6} style={{ textAlign: 'center', padding: '32px', color: '#DC2626' }}>{keluarError}</td></tr>
-            ) : keluarRows.length === 0 ? (
-              <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>
-                  <TrendingDown size={30} style={{ color: '#94A3B8', margin: '0 auto 8px', display: 'block' }} />
-                  Belum ada data opname pada rentang ini.
-                </td>
-              </tr>
-            ) : keluarRows.map((r) => (
-              <tr key={r.product_id}>
-                <td style={{ fontWeight: 600, color: '#0F172A', fontSize: '13px' }}>{r.product_name}</td>
-                <td style={{ fontSize: '13px', color: '#475569' }}>{r.category ?? '-'}</td>
-                <td style={{ textAlign: 'right', fontSize: '13.5px', fontWeight: 700, color: '#0F172A' }}>
-                  {r.rata_per_hari.toLocaleString('id-ID', { maximumFractionDigits: 1 })} pcs
-                </td>
-                <td style={{ textAlign: 'right', fontSize: '13px' }}>{r.total_keluar.toLocaleString('id-ID')} pcs</td>
-                <td style={{ textAlign: 'right', fontSize: '13px', color: '#475569' }}>{r.total_hari}</td>
-                <td style={{ fontSize: '13px', color: isCountStale(r.terakhir_dihitung) ? '#DC2626' : '#475569' }}>
-                  {relativeDayLabel(r.terakhir_dihitung)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      </>)}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+              {renderDateInput('Dari Tanggal', startDate, setStartDate, endDate || undefined)}
+              {renderDateInput('Sampai Tanggal', endDate, setEndDate, undefined, startDate || undefined)}
+              <div>
+                <label className="form-label" style={labelStyle}>
+                  <Filter size={14} style={{ color: '#64748B' }} />
+                  <span>Produk</span>
+                </label>
+                <select
+                  className="form-select"
+                  style={{ height: '42px', fontSize: '14px', borderRadius: '8px' }}
+                  value={productId}
+                  onChange={(e) => setProductId(e.target.value)}
+                >
+                  <option value="all">Semua Produk</option>
+                  {products.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
 
+          {/* Tabel Riwayat Sesi */}
+          <div className="table-container">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th style={{ width: '26%' }}>Tanggal & Waktu</th>
+                  <th style={{ width: '22%' }}>Pengguna</th>
+                  <th style={{ width: '18%', textAlign: 'center' }}>Jumlah Produk</th>
+                  <th>Catatan</th>
+                  <th style={{ width: '110px', textAlign: 'center' }}>Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={5} style={{ textAlign: 'center', padding: '36px', color: '#94A3B8' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                        <div style={{ width: '16px', height: '16px', borderRadius: '50%', border: '2px solid #CBD5E1', borderTopColor: '#0F172A', animation: 'spin 0.6s linear infinite' }} />
+                        <span>Memuat riwayat opname...</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : loadError ? (
+                  <tr>
+                    <td colSpan={5} style={{ textAlign: 'center', padding: '36px', color: '#DC2626' }}>
+                      <AlertCircle size={22} style={{ margin: '0 auto 6px', display: 'block' }} />
+                      {loadError}
+                    </td>
+                  </tr>
+                ) : sessions.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>
+                      <ClipboardCheck size={32} style={{ color: '#94A3B8', margin: '0 auto 8px', display: 'block' }} />
+                      Belum ada stok opname yang sesuai filter.
+                    </td>
+                  </tr>
+                ) : (
+                  sessions.map((s) => (
+                    <tr key={s.id}>
+                      <td style={{ color: '#0F172A', fontSize: '14px', fontWeight: 600 }}>
+                        {formatDateTime(s.created_at)}
+                      </td>
+                      <td style={{ color: '#475569', fontSize: '14px' }}>
+                        {s.username ?? '-'}
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            padding: '3px 12px',
+                            borderRadius: 'var(--radius-full)',
+                            background: '#F1F5F9',
+                            border: '1px solid #E2E8F0',
+                            fontSize: '13px',
+                            fontWeight: 700,
+                            color: '#0F172A'
+                          }}
+                        >
+                          {s.item_count} produk
+                        </span>
+                      </td>
+                      <td style={{ color: '#475569', fontSize: '14px' }}>
+                        {s.note || <span style={{ color: '#94A3B8' }}>-</span>}
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <button
+                          onClick={() => openDetail(s.id)}
+                          className="btn btn-secondary"
+                          style={{ height: '34px', padding: '0 14px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                          title="Lihat detail hitungan opname"
+                        >
+                          <Eye size={14} />
+                          <span>Detail</span>
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {tab === 'keluar' && (
+        <>
+          {/* Filter Card - Rata-rata Keluar */}
+          <div className="card" style={{ marginBottom: '22px', padding: '20px 24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <TrendingDown size={16} style={{ color: '#0F172A' }} />
+                  <h4 style={{ fontSize: '14.5px', fontWeight: 700, color: '#0F172A', margin: 0 }}>Filter Analisis Barang Keluar</h4>
+                </div>
+                <p style={{ fontSize: '12.5px', color: '#64748B', margin: '4px 0 0' }}>
+                  {keluarRange ? `${formatDateOnly(keluarRange.startDate)} – ${formatDateOnly(keluarRange.endDate)}` : '30 hari terakhir'} · Rata-rata dihitung dari total keluar ÷ jumlah hari antar-hitungan
+                </p>
+              </div>
+              {(kStart || kEnd || kCategory !== 'Semua') && (
+                <button
+                  onClick={() => { setKStart(''); setKEnd(''); setKCategory('Semua'); }}
+                  className="btn btn-secondary btn-sm"
+                  style={{ height: '32px', fontSize: '12.5px', padding: '0 12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <RotateCcw size={13} />
+                  <span>Reset Filter</span>
+                </button>
+              )}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+              {renderDateInput('Dari Tanggal', kStart || keluarRange?.startDate || '', setKStart, kEnd || undefined)}
+              {renderDateInput('Sampai Tanggal', kEnd || keluarRange?.endDate || '', setKEnd, undefined, kStart || undefined)}
+              <div>
+                <label className="form-label" style={labelStyle}>
+                  <Filter size={14} style={{ color: '#64748B' }} />
+                  <span>Kategori Produk</span>
+                </label>
+                <select
+                  className="form-select"
+                  style={{ height: '42px', fontSize: '14px', borderRadius: '8px' }}
+                  value={kCategory}
+                  onChange={(e) => setKCategory(e.target.value)}
+                >
+                  <option value="Semua">Semua Kategori</option>
+                  {categories.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Tabel Rata-rata Keluar */}
+          <div className="table-container">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th style={{ width: '28%' }}>Produk</th>
+                  <th style={{ width: '16%' }}>Kategori</th>
+                  <th style={{ width: '18%', textAlign: 'right' }}>Rata-rata Keluar / Hari</th>
+                  <th style={{ width: '14%', textAlign: 'right' }}>Total Keluar</th>
+                  <th style={{ width: '10%', textAlign: 'center' }}>Hari</th>
+                  <th style={{ width: '14%' }}>Terakhir Dihitung</th>
+                </tr>
+              </thead>
+              <tbody>
+                {isKeluarLoading && keluarRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '36px', color: '#94A3B8' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                        <div style={{ width: '16px', height: '16px', borderRadius: '50%', border: '2px solid #CBD5E1', borderTopColor: '#0F172A', animation: 'spin 0.6s linear infinite' }} />
+                        <span>Menghitung rata-rata keluar...</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : keluarError ? (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '36px', color: '#DC2626' }}>
+                      <AlertCircle size={22} style={{ margin: '0 auto 6px', display: 'block' }} />
+                      {keluarError}
+                    </td>
+                  </tr>
+                ) : keluarRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>
+                      <TrendingDown size={32} style={{ color: '#94A3B8', margin: '0 auto 8px', display: 'block' }} />
+                      Belum ada data opname pada rentang ini.
+                    </td>
+                  </tr>
+                ) : (
+                  keluarRows.map((r) => (
+                    <tr key={r.product_id}>
+                      <td>
+                        <div style={{ fontWeight: 600, color: '#0F172A', fontSize: '14.5px' }}>
+                          {r.product_name}
+                        </div>
+                      </td>
+                      <td>
+                        <Badge type="neutral">{r.category ?? 'Lainnya'}</Badge>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <span style={{ fontSize: '15px', fontWeight: 800, color: '#0F172A' }}>
+                          {r.rata_per_hari.toLocaleString('id-ID', { maximumFractionDigits: 1 })}
+                        </span>{' '}
+                        <span style={{ fontSize: '12.5px', color: '#64748B', fontWeight: 600 }}>pcs/hari</span>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <span style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A' }}>
+                          {r.total_keluar.toLocaleString('id-ID')}
+                        </span>{' '}
+                        <span style={{ fontSize: '12px', color: '#64748B' }}>pcs</span>
+                      </td>
+                      <td style={{ textAlign: 'center', fontSize: '14px', color: '#475569', fontWeight: 500 }}>
+                        {r.total_hari} hari
+                      </td>
+                      <td>
+                        <span
+                          style={{
+                            fontSize: '13px',
+                            fontWeight: isCountStale(r.terakhir_dihitung) ? 700 : 500,
+                            color: isCountStale(r.terakhir_dihitung) ? '#DC2626' : '#475569'
+                          }}
+                        >
+                          {relativeDayLabel(r.terakhir_dihitung)}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {/* Modal Detail Opname */}
       <Modal
         isOpen={isDetailOpen}
         onClose={() => setIsDetailOpen(false)}
         title={detail ? `Detail Opname · ${formatDateTime(detail.created_at)}` : 'Detail Opname'}
-        maxWidth="820px"
+        maxWidth="840px"
       >
         {isDetailLoading ? (
-          <p style={{ textAlign: 'center', color: '#94A3B8', fontSize: '13px', padding: '20px 0' }}>Memuat detail...</p>
+          <p style={{ textAlign: 'center', color: '#94A3B8', fontSize: '13px', padding: '24px 0' }}>Memuat detail...</p>
         ) : detailError ? (
-          <p style={{ textAlign: 'center', color: '#DC2626', fontSize: '13px', padding: '20px 0' }}>{detailError}</p>
+          <p style={{ textAlign: 'center', color: '#DC2626', fontSize: '13px', padding: '24px 0' }}>{detailError}</p>
         ) : detail ? (
           <>
-            <p style={{ fontSize: '13px', color: '#64748B', marginBottom: '14px' }}>
-              Dicatat oleh <strong style={{ color: '#0F172A' }}>{detail.username ?? '-'}</strong> · {detail.item_count} produk
-              {detail.note ? ` · ${detail.note}` : ''}
-            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 'var(--radius-md)', marginBottom: '16px', fontSize: '13.5px', color: '#475569', flexWrap: 'wrap' }}>
+              <span>Dicatat oleh: <strong style={{ color: '#0F172A' }}>{detail.username ?? '-'}</strong></span>
+              <span>·</span>
+              <span>Total: <strong style={{ color: '#0F172A' }}>{detail.item_count} produk</strong></span>
+              {detail.note && (
+                <>
+                  <span>·</span>
+                  <span>Catatan: <em>{detail.note}</em></span>
+                </>
+              )}
+            </div>
+
             <div className="table-container">
               <table className="data-table">
                 <thead>
                   <tr>
                     <th>Produk</th>
-                    <th style={{ textAlign: 'right' }}>Stok sistem</th>
-                    <th style={{ textAlign: 'right' }}>Hitungan</th>
+                    <th style={{ textAlign: 'right' }}>Stok Sistem</th>
+                    <th style={{ textAlign: 'right' }}>Hitungan Fisik</th>
                     <th style={{ textAlign: 'right' }}>Keluar</th>
-                    <th style={{ textAlign: 'right' }}>Keluar / hari</th>
-                    <th>Jenis</th>
+                    <th style={{ textAlign: 'right' }}>Rata-rata / Hari</th>
+                    <th style={{ textAlign: 'center' }}>Jenis</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -427,22 +633,22 @@ export default function OpnamePage() {
                     return (
                       <tr key={it.id} style={highlight ? { background: '#F8FAFC' } : undefined}>
                         <td>
-                          <div style={{ fontWeight: 600, color: '#0F172A', fontSize: '13px' }}>{it.product_name}</div>
-                          {it.category && <div style={{ fontSize: '11.5px', color: '#64748B' }}>{it.category}</div>}
+                          <div style={{ fontWeight: 600, color: '#0F172A', fontSize: '14px' }}>{it.product_name}</div>
+                          {it.category && <div style={{ fontSize: '12px', color: '#64748B' }}>{it.category}</div>}
                         </td>
-                        <td style={{ textAlign: 'right', fontSize: '13px' }}>{it.stok_sistem} pcs</td>
-                        <td style={{ textAlign: 'right', fontSize: '13px', fontWeight: 600 }}>{it.hitungan} pcs</td>
-                        <td style={{ textAlign: 'right', fontSize: '13px', color: it.keluar > 0 ? '#DC2626' : '#475569' }}>
+                        <td style={{ textAlign: 'right', fontSize: '14px', color: '#475569' }}>{it.stok_sistem} pcs</td>
+                        <td style={{ textAlign: 'right', fontSize: '14px', fontWeight: 700, color: '#0F172A' }}>{it.hitungan} pcs</td>
+                        <td style={{ textAlign: 'right', fontSize: '14px', fontWeight: 600, color: it.keluar > 0 ? '#DC2626' : '#475569' }}>
                           {it.keluar} pcs
                           {it.koreksi !== 0 && (
-                            <div style={{ fontSize: '11.5px', color: '#B45309' }}>koreksi {it.koreksi > 0 ? '+' : ''}{it.koreksi}</div>
+                            <div style={{ fontSize: '12px', color: '#B45309', fontWeight: 500 }}>koreksi {it.koreksi > 0 ? '+' : ''}{it.koreksi}</div>
                           )}
                         </td>
-                        <td style={{ textAlign: 'right', fontSize: '13px', color: '#475569' }}>
+                        <td style={{ textAlign: 'right', fontSize: '14px', color: '#475569' }}>
                           {it.keluar_per_hari !== null ? `${it.keluar_per_hari.toLocaleString('id-ID')} pcs` : '-'}
-                          {it.hari ? <div style={{ fontSize: '11.5px', color: '#94A3B8' }}>{it.hari} hari</div> : null}
+                          {it.hari ? <div style={{ fontSize: '12px', color: '#94A3B8' }}>{it.hari} hari</div> : null}
                         </td>
-                        <td><Badge type={badge.type}>{badge.label}</Badge></td>
+                        <td style={{ textAlign: 'center' }}><Badge type={badge.type}>{badge.label}</Badge></td>
                       </tr>
                     );
                   })}
