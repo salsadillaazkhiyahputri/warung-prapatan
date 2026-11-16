@@ -549,7 +549,7 @@ export default function RiwayatPage() {
               <th style={{ width: '18%' }}>Tanggal & Waktu</th>
               <th style={{ width: '12%' }}>Jenis</th>
               <th style={{ width: '28%' }}>Produk</th>
-              <th style={{ width: '14%', textAlign: 'right' }}>Jumlah</th>
+              <th style={{ width: '14%' }}>Jumlah</th>
               <th style={{ width: '28%' }}>Supplier / Catatan</th>
             </tr>
           </thead>
@@ -592,7 +592,7 @@ export default function RiwayatPage() {
                         {tx.product?.name || `Produk #${tx.product_id}`}
                       </span>
                     </td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td>
                       <span
                         style={{
                           fontWeight: 700,
