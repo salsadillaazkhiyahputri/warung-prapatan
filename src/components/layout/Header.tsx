@@ -61,11 +61,11 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
 
         <div>
-          <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#0F172A', lineHeight: 1.25, letterSpacing: '-0.02em' }}>
+          <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#0F172A', lineHeight: 1.25, letterSpacing: '-0.025em' }}>
             {title}
           </h2>
           {subtitle && (
-            <p style={{ fontSize: '12.5px', color: '#64748B', marginTop: '2px', fontWeight: 400 }}>
+            <p style={{ fontSize: '13.5px', color: '#64748B', marginTop: '3px', fontWeight: 400, lineHeight: 1.4 }}>
               {subtitle}
             </p>
           )}
