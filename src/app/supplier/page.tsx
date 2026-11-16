@@ -86,9 +86,9 @@ export default function SupplierPage() {
       console.error('Error refreshing suppliers:', err);
       setMasukError('Gagal memuat ringkasan barang masuk');
     } finally {
-      if (!silent) setIsLoading(false);
+      setIsLoading(false);
     }
-  }, [suppliers.length]);
+  }, []);
 
   useEffect(() => {
     refreshAll(true);
@@ -444,33 +444,17 @@ export default function SupplierPage() {
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span
-                        style={{
-                          width: '36px',
-                          height: '36px',
-                          borderRadius: '8px',
-                          background: cfg.bg,
-                          border: `1px solid ${cfg.border}`,
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}
-                      >
-                        {cfg.icon}
-                      </span>
-                      <Badge
-                        type={j}
-                        style={{
-                          fontSize: '13.5px',
-                          fontWeight: 700,
-                          padding: '5px 12px',
-                          borderRadius: 'var(--radius-full)'
-                        }}
-                      >
-                        {SUPPLIER_JENIS_LABEL[j]}
-                      </Badge>
-                    </div>
+                    <Badge
+                      type={j}
+                      style={{
+                        fontSize: '13.5px',
+                        fontWeight: 700,
+                        padding: '5px 14px',
+                        borderRadius: 'var(--radius-full)'
+                      }}
+                    >
+                      {SUPPLIER_JENIS_LABEL[j]}
+                    </Badge>
                     <span
                       style={{
                         fontSize: '13px',
@@ -530,7 +514,7 @@ export default function SupplierPage() {
             </tr>
           </thead>
           <tbody>
-            {isLoading ? (
+            {isLoading && sortedSuppliers.length === 0 ? (
               <tr>
                 <td colSpan={5} style={{ textAlign: 'center', padding: '36px', color: '#94A3B8' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
