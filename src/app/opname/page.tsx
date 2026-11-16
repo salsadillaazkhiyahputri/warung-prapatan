@@ -16,3 +16,19 @@ const JENIS_BADGE: Record<OpnameItemJenis, { type: BadgeType; label: string }> =
   koreksi: { type: 'koreksi', label: 'Koreksi' },
   baseline: { type: 'neutral', label: 'Hitung awal' }
 };
+
+const labelStyle: React.CSSProperties = {
+  display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', fontWeight: 600, color: '#334155', marginBottom: '6px'
+};
+
+export default function OpnamePage() {
+  const [sessions, setSessions] = useState<OpnameSession[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [productId, setProductId] = useState('all');
+
+  const [tab, setTab] = useState<Tab>('sesi');
