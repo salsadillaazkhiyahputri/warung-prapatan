@@ -70,3 +70,27 @@ export default function OpnamePage() {
       setIsLoading(false);
     }
   };
+
+  const fetchKeluar = async () => {
+    setIsKeluarLoading(true);
+    setKeluarError('');
+    try {
+      const params = new URLSearchParams();
+      if (kStart) params.append('startDate', kStart);
+      if (kEnd) params.append('endDate', kEnd);
+      if (kCategory !== 'Semua') params.append('category', kCategory);
+      const res = await fetch(`/api/opname/keluar-per-hari?${params.toString()}`);
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setKeluarRows([]);
+        setKeluarError(data?.error || 'Gagal menghitung rata-rata keluar per hari');
+        return;
+      }
+      setKeluarRows(data.rows);
+      setKeluarRange(data.range);
+    } catch {
+      setKeluarError('Terjadi kesalahan pada server');
+    } finally {
+      setIsKeluarLoading(false);
+    }
+  };
