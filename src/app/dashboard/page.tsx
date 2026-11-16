@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { StatCard } from '@/components/ui/StatCard';
@@ -26,8 +26,8 @@ export default function DashboardPage() {
     return !getClientCache<DashboardStats>('dashboard:stats');
   });
 
-  const fetchStats = async () => {
-    if (!stats) setIsLoading(true);
+  const fetchStats = useCallback(async (silent = false) => {
+    if (!silent && !stats) setIsLoading(true);
     try {
       const res = await fetch('/api/dashboard/stats');
       if (res.ok) {
@@ -38,13 +38,23 @@ export default function DashboardPage() {
     } catch (err) {
       console.error('Gagal memuat statistik:', err);
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
-  };
+  }, [stats]);
 
   useEffect(() => {
-    fetchStats();
-  }, []);
+    fetchStats(true);
+    // Auto-refresh setiap 25 detik & saat tab browser kembali aktif
+    const interval = setInterval(() => {
+      fetchStats(true);
+    }, 25000);
+    const handleFocus = () => fetchStats(true);
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [fetchStats]);
 
   return (
     <DashboardLayout
@@ -59,15 +69,7 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button
-            onClick={fetchStats}
-            className="btn btn-secondary btn-sm"
-            title="Segarkan Data"
-          >
-            <RefreshCw size={14} className={isLoading ? 'pulse' : ''} />
-            <span>Segarkan</span>
-          </button>
+        <div>
           <Link href="/produk" className="btn btn-primary btn-sm">
             <Plus size={15} />
             <span>Tambah Produk</span>
