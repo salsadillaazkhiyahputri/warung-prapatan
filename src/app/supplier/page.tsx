@@ -305,16 +305,131 @@ export default function SupplierPage() {
         </div>
       )}
 
-      {/* Header Counter & Filter */}
-      <div className="page-header-box" style={{ marginBottom: '18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+      {/* Ringkasan barang masuk per jenis supplier (di atas, lebih ringkas & proporsional) */}
+      <div className="card" style={{ marginBottom: '18px', padding: '14px 18px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+          <div>
+            <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', margin: 0 }}>Ringkasan Barang Masuk per Jenis Supplier</h4>
+            <p style={{ fontSize: '12px', color: '#64748B', margin: '2px 0 0' }}>Akumulasi volume barang masuk selama periode 30 hari terakhir</p>
+          </div>
+          <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#475569', background: '#F1F5F9', border: '1px solid #E2E8F0', padding: '4px 10px', borderRadius: 'var(--radius-full)' }}>
+            {masukRange ? `${formatDateOnly(masukRange.startDate)} – ${formatDateOnly(masukRange.endDate)}` : '30 hari terakhir'} · tanpa koreksi stok
+          </span>
+        </div>
+        {masukError ? (
+          <p style={{ fontSize: '13px', color: '#DC2626', margin: 0 }}>{masukError}</p>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+            {SUPPLIER_JENIS.map((j) => {
+              const row = masuk.find((x) => x.jenis === j) ?? { jenis: j, total_qty: 0, transaction_count: 0 };
+              const maxQty = Math.max(1, ...masuk.map((x) => x.total_qty));
+              const pct = (row.total_qty / maxQty) * 100;
+              const configs: Record<SupplierJenis, { color: string; bg: string; border: string; icon: React.ReactNode }> = {
+                utama: {
+                  color: '#2563EB',
+                  bg: '#EFF6FF',
+                  border: '#BFDBFE',
+                  icon: <Truck size={15} style={{ color: '#2563EB' }} />
+                },
+                cadangan: {
+                  color: '#EA580C',
+                  bg: '#FFF7ED',
+                  border: '#FED7AA',
+                  icon: <Layers size={15} style={{ color: '#EA580C' }} />
+                },
+                grosir: {
+                  color: '#7C3AED',
+                  bg: '#FAF5FF',
+                  border: '#E9D5FF',
+                  icon: <Building2 size={15} style={{ color: '#7C3AED' }} />
+                }
+              };
+              const cfg = configs[j];
+              return (
+                <div
+                  key={j}
+                  title={`${SUPPLIER_JENIS_LABEL[j]}: ${row.total_qty.toLocaleString('id-ID')} pcs dari ${row.transaction_count} transaksi`}
+                  style={{
+                    background: '#FFFFFF',
+                    border: '1px solid #E2E8F0',
+                    borderTop: `3px solid ${cfg.color}`,
+                    borderRadius: 'var(--radius-md)',
+                    padding: '12px 14px',
+                    boxShadow: 'var(--shadow-xs)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    gap: '10px'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Badge
+                      type={j}
+                      style={{
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        padding: '3px 10px',
+                        borderRadius: 'var(--radius-full)'
+                      }}
+                    >
+                      {SUPPLIER_JENIS_LABEL[j]}
+                    </Badge>
+                    <span
+                      style={{
+                        fontSize: '11.5px',
+                        fontWeight: 600,
+                        color: '#64748B',
+                        background: '#F8FAFC',
+                        border: '1px solid #E2E8F0',
+                        padding: '2px 8px',
+                        borderRadius: 'var(--radius-full)'
+                      }}
+                    >
+                      {row.transaction_count} transaksi
+                    </span>
+                  </div>
+
+                  <div>
+                    <div style={{ fontSize: '20px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+                      {row.total_qty.toLocaleString('id-ID')}{' '}
+                      <span style={{ fontSize: '12.5px', fontWeight: 600, color: '#64748B' }}>pcs</span>
+                    </div>
+                    <p style={{ fontSize: '11.5px', color: '#64748B', margin: '2px 0 0' }}>
+                      {row.total_qty > 0 ? `${pct.toFixed(0)}% dari volume masuk tertinggi` : 'Belum ada transaksi masuk'}
+                    </p>
+                  </div>
+
+                  <div>
+                    <div style={{ height: '4px', background: '#F1F5F9', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
+                      <div
+                        style={{
+                          width: `${pct}%`,
+                          minWidth: row.total_qty > 0 ? '4px' : 0,
+                          height: '100%',
+                          background: cfg.color,
+                          borderRadius: 'var(--radius-full)',
+                          transition: 'width 0.3s ease'
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Header Counter & Filter (berada di bawah kartu, tepat di atas tabel) */}
+      <div className="page-header-box" style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
           <div
             style={{
-              padding: '7px 16px',
+              padding: '6px 14px',
               borderRadius: 'var(--radius-full)',
               background: '#FFFFFF',
               border: '1px solid #E2E8F0',
-              fontSize: '13px',
+              fontSize: '12.5px',
               fontWeight: 600,
               color: '#0F172A',
               boxShadow: 'var(--shadow-xs)'
@@ -343,10 +458,10 @@ export default function SupplierPage() {
               display: 'inline-flex',
               alignItems: 'center',
               gap: '8px',
-              height: '38px',
-              padding: '0 14px',
+              height: '36px',
+              padding: '0 13px',
               borderRadius: 'var(--radius-md)',
-              fontSize: '13px',
+              fontSize: '12.5px',
               fontWeight: 600,
               cursor: 'pointer',
               transition: 'all var(--transition-fast)',
@@ -357,11 +472,11 @@ export default function SupplierPage() {
             }}
             title={showInactive ? 'Klik untuk kembali ke supplier aktif' : 'Klik untuk tampilkan hanya supplier nonaktif'}
           >
-            {showInactive ? <Eye size={15} /> : <EyeOff size={15} style={{ color: '#94A3B8' }} />}
+            {showInactive ? <Eye size={14} /> : <EyeOff size={14} style={{ color: '#94A3B8' }} />}
             <span>{showInactive ? 'Menampilkan Nonaktif' : 'Tampilkan Nonaktif'}</span>
             <span
               style={{
-                padding: '1px 7px',
+                padding: '1px 6px',
                 borderRadius: 'var(--radius-full)',
                 fontSize: '11px',
                 fontWeight: 700,
@@ -378,127 +493,12 @@ export default function SupplierPage() {
           <button
             onClick={() => { setAddName(''); setAddJenis(''); setErrorMessage(''); setIsAddModalOpen(true); }}
             className="btn btn-primary"
-            style={{ height: '38px', padding: '0 16px', fontSize: '13.5px', display: 'inline-flex', alignItems: 'center', gap: '7px' }}
+            style={{ height: '36px', padding: '0 14px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
           >
-            <Plus size={15} />
+            <Plus size={14} />
             <span>Tambah supplier</span>
           </button>
         </div>
-      </div>
-
-      {/* Ringkasan barang masuk per jenis supplier */}
-      <div className="card" style={{ marginBottom: '22px', padding: '20px 24px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}>
-          <div>
-            <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', margin: 0 }}>Ringkasan Barang Masuk per Jenis Supplier</h4>
-            <p style={{ fontSize: '13px', color: '#64748B', margin: '3px 0 0' }}>Akumulasi volume barang masuk selama periode 30 hari terakhir</p>
-          </div>
-          <span style={{ fontSize: '12.5px', fontWeight: 600, color: '#475569', background: '#F1F5F9', border: '1px solid #E2E8F0', padding: '5px 12px', borderRadius: 'var(--radius-full)' }}>
-            {masukRange ? `${formatDateOnly(masukRange.startDate)} – ${formatDateOnly(masukRange.endDate)}` : '30 hari terakhir'} · tanpa koreksi stok
-          </span>
-        </div>
-        {masukError ? (
-          <p style={{ fontSize: '13px', color: '#DC2626', margin: 0 }}>{masukError}</p>
-        ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
-            {SUPPLIER_JENIS.map((j) => {
-              const row = masuk.find((x) => x.jenis === j) ?? { jenis: j, total_qty: 0, transaction_count: 0 };
-              const maxQty = Math.max(1, ...masuk.map((x) => x.total_qty));
-              const pct = (row.total_qty / maxQty) * 100;
-              const configs: Record<SupplierJenis, { color: string; bg: string; border: string; icon: React.ReactNode }> = {
-                utama: {
-                  color: '#2563EB',
-                  bg: '#EFF6FF',
-                  border: '#BFDBFE',
-                  icon: <Truck size={18} style={{ color: '#2563EB' }} />
-                },
-                cadangan: {
-                  color: '#EA580C',
-                  bg: '#FFF7ED',
-                  border: '#FED7AA',
-                  icon: <Layers size={18} style={{ color: '#EA580C' }} />
-                },
-                grosir: {
-                  color: '#7C3AED',
-                  bg: '#FAF5FF',
-                  border: '#E9D5FF',
-                  icon: <Building2 size={18} style={{ color: '#7C3AED' }} />
-                }
-              };
-              const cfg = configs[j];
-              return (
-                <div
-                  key={j}
-                  title={`${SUPPLIER_JENIS_LABEL[j]}: ${row.total_qty.toLocaleString('id-ID')} pcs dari ${row.transaction_count} transaksi`}
-                  style={{
-                    background: '#FFFFFF',
-                    border: '1px solid #E2E8F0',
-                    borderTop: `3.5px solid ${cfg.color}`,
-                    borderRadius: 'var(--radius-lg)',
-                    padding: '18px 20px',
-                    boxShadow: 'var(--shadow-xs)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    gap: '14px'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Badge
-                      type={j}
-                      style={{
-                        fontSize: '13.5px',
-                        fontWeight: 700,
-                        padding: '5px 14px',
-                        borderRadius: 'var(--radius-full)'
-                      }}
-                    >
-                      {SUPPLIER_JENIS_LABEL[j]}
-                    </Badge>
-                    <span
-                      style={{
-                        fontSize: '13px',
-                        fontWeight: 600,
-                        color: '#64748B',
-                        background: '#F8FAFC',
-                        border: '1px solid #E2E8F0',
-                        padding: '4px 10px',
-                        borderRadius: 'var(--radius-full)'
-                      }}
-                    >
-                      {row.transaction_count} transaksi
-                    </span>
-                  </div>
-
-                  <div>
-                    <div style={{ fontSize: '26px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
-                      {row.total_qty.toLocaleString('id-ID')}{' '}
-                      <span style={{ fontSize: '14px', fontWeight: 600, color: '#64748B' }}>pcs</span>
-                    </div>
-                    <p style={{ fontSize: '13px', color: '#64748B', margin: '4px 0 0' }}>
-                      {row.total_qty > 0 ? `${pct.toFixed(0)}% dari volume masuk tertinggi` : 'Belum ada transaksi masuk'}
-                    </p>
-                  </div>
-
-                  <div>
-                    <div style={{ height: '6px', background: '#F1F5F9', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
-                      <div
-                        style={{
-                          width: `${pct}%`,
-                          minWidth: row.total_qty > 0 ? '6px' : 0,
-                          height: '100%',
-                          background: cfg.color,
-                          borderRadius: 'var(--radius-full)',
-                          transition: 'width 0.3s ease'
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
       </div>
 
       {/* Tabel Data Supplier Sesuai Proposal */}

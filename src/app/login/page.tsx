@@ -68,20 +68,24 @@ export default function LoginPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <div
                 style={{
-                  width: '40px',
-                  height: '40px',
+                  width: '42px',
+                  height: '42px',
                   borderRadius: '10px',
-                  background: 'linear-gradient(135deg, #1E293B 0%, #334155 100%)',
-                  border: '1px solid rgba(255, 255, 255, 0.14)',
+                  background: '#FFFFFF',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#38BDF8',
-                  boxShadow: '0 2px 6px rgba(0, 0, 0, 0.25)',
-                  flexShrink: 0
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.25)',
+                  flexShrink: 0,
+                  overflow: 'hidden'
                 }}
               >
-                <Store size={20} />
+                <img
+                  src="/logo-icon.png?v=2"
+                  alt="Warung Prapatan"
+                  style={{ width: '34px', height: '34px', objectFit: 'contain' }}
+                />
               </div>
               <div>
                 <div
@@ -103,7 +107,7 @@ export default function LoginPage() {
                     letterSpacing: '0.04em'
                   }}
                 >
-                  Sistem Manajemen Stok
+                  Sistem Manajemen Stok & AI Bot
                 </div>
               </div>
             </div>
