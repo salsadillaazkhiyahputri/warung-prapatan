@@ -121,17 +121,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
               style={{
                 width: '40px',
                 height: '40px',
-                borderRadius: 'var(--radius-md)',
-                background: 'linear-gradient(135deg, #1E293B 0%, #334155 100%)',
-                border: '1px solid rgba(255, 255, 255, 0.12)',
+                borderRadius: '10px',
+                background: '#FFFFFF',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#38BDF8',
-                boxShadow: '0 2px 6px rgba(0, 0, 0, 0.2)'
+                boxShadow: '0 2px 6px rgba(0, 0, 0, 0.2)',
+                overflow: 'hidden',
+                flexShrink: 0
               }}
             >
-              <Store size={20} />
+              <img
+                src="/logo-icon.png?v=2"
+                alt="Warung Prapatan"
+                style={{ width: '32px', height: '32px', objectFit: 'contain' }}
+              />
             </div>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>

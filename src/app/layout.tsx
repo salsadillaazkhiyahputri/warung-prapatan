@@ -20,6 +20,14 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Warung Prapatan - Pencatatan Stok Terpadu & AI Chatbot",
   description: "Sistem Manajemen Stok Warung Prapatan Berbasis Web Terintegrasi AI Chatbot Telegram",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/logo-icon.png?v=2", type: "image/png" }
+    ],
+    shortcut: "/favicon.ico",
+    apple: "/logo-icon.png?v=2"
+  }
 };
 
 export default function RootLayout({
