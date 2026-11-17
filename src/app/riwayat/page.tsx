@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
+import { Pagination, usePagination } from '@/components/ui/Pagination';
 import { Transaction, Product, Supplier, TransactionType, TransactionKind, SUPPLIER_JENIS } from '@/types';
 import { formatDateTime } from '@/lib/export-utils';
 import { SUPPLIER_JENIS_LABEL, TRANSACTION_KIND_LABEL, TRANSACTION_KINDS } from '@/lib/stock-labels';
@@ -41,6 +42,11 @@ export default function RiwayatPage() {
   const [endDate, setEndDate] = useState('');
   const [selectedProductId, setSelectedProductId] = useState('all');
   const [selectedKind, setSelectedKind] = useState<'all' | TransactionKind>('all');
+  const transactionPagination = usePagination(
+    transactions,
+    10,
+    `${startDate}:${endDate}:${selectedProductId}:${selectedKind}`
+  );
 
   // Export Modal state
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -600,7 +606,7 @@ export default function RiwayatPage() {
                 </td>
               </tr>
             ) : (
-              transactions.map((tx) => {
+              transactionPagination.pageItems.map((tx) => {
                 const isIn = tx.type === 'in';
                 const kind: TransactionKind = tx.kind ?? (isIn ? 'masuk' : 'keluar_manual');
                 // "Stok awal" (opname pertama) bukan barang keluar/masuk sungguhan: label netral.
@@ -657,6 +663,12 @@ export default function RiwayatPage() {
           </tbody>
         </table>
       </div>
+      <Pagination
+        currentPage={transactionPagination.currentPage}
+        pageSize={transactionPagination.pageSize}
+        totalItems={transactionPagination.totalItems}
+        onPageChange={transactionPagination.setCurrentPage}
+      />
 
       {/* Modal Ekspor Laporan */}
       <Modal

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { StatCard } from '@/components/ui/StatCard';
 import { Badge } from '@/components/ui/Badge';
+import { Pagination, usePagination } from '@/components/ui/Pagination';
 import { DashboardStats } from '@/types';
 import { getClientCache, setClientCache } from '@/lib/client-cache';
 import {
@@ -25,6 +26,7 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(() => {
     return !getClientCache<DashboardStats>('dashboard:stats');
   });
+  const lowStockPagination = usePagination(stats?.low_stock_products ?? [], 10);
 
   const fetchStats = useCallback(async (silent = false) => {
     if (!silent && !stats) setIsLoading(true);
@@ -222,7 +224,7 @@ export default function DashboardPage() {
                   </td>
                 </tr>
               ) : (
-                stats.low_stock_products.map((item) => (
+                lowStockPagination.pageItems.map((item) => (
                   <tr key={item.id}>
                     <td>
                       <div style={{ fontWeight: 600, color: '#0F172A', fontSize: '13.5px' }}>
@@ -258,6 +260,12 @@ export default function DashboardPage() {
             </tbody>
           </table>
         </div>
+        <Pagination
+          currentPage={lowStockPagination.currentPage}
+          pageSize={lowStockPagination.pageSize}
+          totalItems={lowStockPagination.totalItems}
+          onPageChange={lowStockPagination.setCurrentPage}
+        />
       </div>
 
       <style jsx global>{`

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
+import { Pagination, usePagination } from '@/components/ui/Pagination';
 import { Supplier, SupplierJenis, SUPPLIER_JENIS, MasukPerJenisRow } from '@/types';
 import { formatDateOnly } from '@/lib/export-utils';
 import { SUPPLIER_JENIS_LABEL } from '@/lib/stock-labels';
@@ -190,6 +191,7 @@ export default function SupplierPage() {
     // Jika jenis sama, urutkan nama secara alfabetis
     return a.name.localeCompare(b.name, 'id');
   });
+  const supplierPagination = usePagination(sortedSuppliers, 10, String(showInactive));
 
   const openEditModal = (supplier: Supplier) => {
     setSelectedSupplier(supplier);
@@ -537,7 +539,7 @@ export default function SupplierPage() {
                 </td>
               </tr>
             ) : (
-              sortedSuppliers.map((item) => (
+              supplierPagination.pageItems.map((item) => (
                 <tr key={item.id} style={item.is_active ? undefined : { opacity: 0.55, background: '#F8FAFC' }}>
                   <td>
                     <div style={{ fontWeight: 600, color: '#0F172A', fontSize: '14.5px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -649,6 +651,12 @@ export default function SupplierPage() {
           </tbody>
         </table>
       </div>
+      <Pagination
+        currentPage={supplierPagination.currentPage}
+        pageSize={supplierPagination.pageSize}
+        totalItems={supplierPagination.totalItems}
+        onPageChange={supplierPagination.setCurrentPage}
+      />
       <p style={{ fontSize: '12px', color: '#64748B', margin: '8px 2px 0' }}>
         Angka ini dihitung dari seluruh riwayat stok masuk, termasuk barang yang sudah dihapus dari katalog.
       </p>

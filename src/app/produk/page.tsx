@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
+import { Pagination, usePagination } from '@/components/ui/Pagination';
 import { Product, DEFAULT_CATEGORY } from '@/types';
 import { relativeDayLabel, isCountStale } from '@/lib/stock-labels';
 import { formatDateOnly } from '@/lib/export-utils';
@@ -239,6 +240,11 @@ export default function ProdukPage() {
 
   const needsReviewCount = products.filter((p) => p.needs_review).length;
   const visibleProducts = onlyNeedsReview ? products.filter((p) => p.needs_review) : products;
+  const productPagination = usePagination(
+    visibleProducts,
+    10,
+    `${searchQuery}:${selectedCategory}:${onlyNeedsReview}`
+  );
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -542,7 +548,7 @@ export default function ProdukPage() {
                 </td>
               </tr>
             ) : (
-              visibleProducts.map((item) => {
+              productPagination.pageItems.map((item) => {
                 const isLowStock = item.stock_current <= item.stock_minimum;
                 const staleCount = isCountStale(item.last_counted_at);
                 const countTitle = item.last_counted_at
@@ -697,6 +703,12 @@ export default function ProdukPage() {
           </tbody>
         </table>
       </div>
+      <Pagination
+        currentPage={productPagination.currentPage}
+        pageSize={productPagination.pageSize}
+        totalItems={productPagination.totalItems}
+        onPageChange={productPagination.setCurrentPage}
+      />
 
 
       {/* MODAL 1: Tambah Produk */}

@@ -4,6 +4,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Modal } from '@/components/ui/Modal';
 import { Badge, BadgeType } from '@/components/ui/Badge';
+import { Pagination, usePagination } from '@/components/ui/Pagination';
 import { DEFAULT_CATEGORY, KeluarPerHariRow, OpnameDetail, OpnameItemJenis, OpnameSession, Product } from '@/types';
 import { formatDateOnly, formatDateTime } from '@/lib/export-utils';
 import { isCountStale, relativeDayLabel } from '@/lib/stock-labels';
@@ -50,10 +51,14 @@ export default function OpnamePage() {
   const [isKeluarLoading, setIsKeluarLoading] = useState(false);
   const [keluarError, setKeluarError] = useState('');
 
+  const sessionPagination = usePagination(sessions, 10, `${startDate}:${endDate}:${productId}`);
+  const keluarPagination = usePagination(keluarRows, 10, `${kStart}:${kEnd}:${kCategory}`);
+
   const [detail, setDetail] = useState<OpnameDetail | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState('');
+  const detailPagination = usePagination(detail?.items ?? [], 10, String(detail?.id ?? ''));
 
   const fetchSessions = useCallback(async (silent = false) => {
     const isDefault = !startDate && !endDate && productId === 'all';
@@ -359,6 +364,8 @@ export default function OpnamePage() {
       >
         <button
           type="button"
+          className={`opname-tab${tab === 'sesi' ? ' active' : ''}`}
+          aria-pressed={tab === 'sesi'}
           onClick={() => setTab('sesi')}
           style={{
             display: 'inline-flex',
@@ -394,6 +401,8 @@ export default function OpnamePage() {
 
         <button
           type="button"
+          className={`opname-tab${tab === 'keluar' ? ' active' : ''}`}
+          aria-pressed={tab === 'keluar'}
           onClick={() => setTab('keluar')}
           style={{
             display: 'inline-flex',
@@ -417,6 +426,7 @@ export default function OpnamePage() {
       </div>
 
       {tab === 'sesi' && (
+        <>
         <div className="table-container">
             <table className="data-table">
               <thead>
@@ -453,7 +463,7 @@ export default function OpnamePage() {
                     </td>
                   </tr>
                 ) : (
-                  sessions.map((s) => (
+                  sessionPagination.pageItems.map((s) => (
                     <tr key={s.id}>
                       <td style={{ color: '#0F172A', fontSize: '14px', fontWeight: 600 }}>
                         {formatDateTime(s.created_at)}
@@ -498,10 +508,18 @@ export default function OpnamePage() {
               </tbody>
             </table>
           </div>
+          <Pagination
+            currentPage={sessionPagination.currentPage}
+            pageSize={sessionPagination.pageSize}
+            totalItems={sessionPagination.totalItems}
+            onPageChange={sessionPagination.setCurrentPage}
+          />
+          </>
       )}
 
       {tab === 'keluar' && (
-          /* Tabel Rata-rata Keluar */
+        <>
+          {/* Tabel Rata-rata Keluar */}
           <div className="table-container">
             <table className="data-table">
               <thead>
@@ -539,7 +557,7 @@ export default function OpnamePage() {
                     </td>
                   </tr>
                 ) : (
-                  keluarRows.map((r) => (
+                  keluarPagination.pageItems.map((r) => (
                     <tr key={r.product_id}>
                       <td>
                         <div style={{ fontWeight: 600, color: '#0F172A', fontSize: '14.5px' }}>
@@ -581,6 +599,13 @@ export default function OpnamePage() {
               </tbody>
             </table>
           </div>
+          <Pagination
+            currentPage={keluarPagination.currentPage}
+            pageSize={keluarPagination.pageSize}
+            totalItems={keluarPagination.totalItems}
+            onPageChange={keluarPagination.setCurrentPage}
+          />
+        </>
       )}
 
       {/* Modal Detail Opname */}
@@ -623,7 +648,7 @@ export default function OpnamePage() {
                 <tbody>
                   {detail.items.length === 0 ? (
                     <tr><td colSpan={6} style={{ textAlign: 'center', padding: '24px', color: '#64748B' }}>Sesi ini tidak punya item.</td></tr>
-                  ) : detail.items.map((it) => {
+                  ) : detailPagination.pageItems.map((it) => {
                     const badge = JENIS_BADGE[it.jenis];
                     const highlight = selectedProductId === it.product_id;
                     return (
@@ -651,6 +676,12 @@ export default function OpnamePage() {
                 </tbody>
               </table>
             </div>
+            <Pagination
+              currentPage={detailPagination.currentPage}
+              pageSize={detailPagination.pageSize}
+              totalItems={detailPagination.totalItems}
+              onPageChange={detailPagination.setCurrentPage}
+            />
           </>
         ) : null}
       </Modal>

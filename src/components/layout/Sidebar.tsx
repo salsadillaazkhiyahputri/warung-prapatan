@@ -169,12 +169,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
                     fontSize: '13.5px',
                     fontWeight: isActive ? 600 : 500,
                     color: isActive ? '#FFFFFF' : '#94A3B8',
-                    background: isActive ? '#1E293B' : 'transparent',
                     border: isActive ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid transparent',
                     boxShadow: isActive ? '0 1px 2px rgba(0, 0, 0, 0.2)' : 'none',
                     transition: 'all var(--transition-fast)'
                   }}
-                  className="nav-link"
+                  className={`nav-link${isActive ? ' active' : ''}`}
+                  aria-current={isActive ? 'page' : undefined}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '11px' }}>
                     <span style={{ color: isActive ? '#38BDF8' : '#64748B', display: 'flex' }}>
@@ -184,7 +184,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
                   </div>
 
                   {isActive ? (
-                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#38BDF8' }} />
+                    <span
+                      className="nav-active-indicator"
+                      style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#38BDF8' }}
+                    />
                   ) : null}
                 </Link>
               );
@@ -265,10 +268,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
       </aside>
 
       <style jsx global>{`
-        .nav-link:not([style*="#1E293B"]):hover {
-          background: rgba(255, 255, 255, 0.05) !important;
-          color: #F8FAFC !important;
-        }
         .logout-btn:hover {
           background: #DC2626 !important;
           color: #FFFFFF !important;
