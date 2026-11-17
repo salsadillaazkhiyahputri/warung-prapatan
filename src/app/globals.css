@@ -137,6 +137,58 @@ input, select, textarea {
   min-height: 100vh;
 }
 
+.nav-link {
+  transform: translateX(0);
+}
+
+.nav-link.active {
+  background: #1E293B;
+  animation: nav-selection-enter 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.nav-active-indicator {
+  animation: nav-indicator-enter 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes nav-selection-enter {
+  from {
+    opacity: 0.72;
+    transform: translateX(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes nav-indicator-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.35);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.nav-link:hover {
+  background: rgba(148, 163, 184, 0.16) !important;
+  color: #FFFFFF !important;
+  transform: translateX(3px);
+}
+
+.nav-link.active:hover {
+  background: #273449 !important;
+}
+
+.nav-link:focus-visible,
+.opname-tab:focus-visible,
+.pagination-button:focus-visible {
+  outline: 3px solid #38BDF8;
+  outline-offset: 2px;
+}
+
 .main-content {
   flex: 1;
   display: flex;
@@ -153,6 +205,16 @@ input, select, textarea {
 @media (max-width: 768px) {
   .page-wrapper {
     padding: 16px 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-link,
+  .nav-link.active,
+  .nav-active-indicator,
+  .page-route-motion {
+    animation: none !important;
+    transition: none !important;
   }
 }
 
@@ -410,6 +472,85 @@ input, select, textarea {
   border-bottom: none;
 }
 
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 12px 2px 0;
+  color: #64748B;
+  font-size: 12px;
+}
+
+.pagination-summary {
+  white-space: nowrap;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pagination-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+  transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.pagination-button:hover:not(:disabled) {
+  border-color: #CBD5E1;
+  background: #F1F5F9;
+  color: #0F172A;
+}
+
+.pagination-button.is-current {
+  border-color: #0F172A;
+  background: #0F172A;
+  color: #FFFFFF;
+}
+
+.pagination-button:disabled {
+  color: #CBD5E1;
+  cursor: not-allowed;
+}
+
+.pagination-ellipsis {
+  padding: 0 3px;
+  color: #94A3B8;
+}
+
+.opname-tab {
+  position: relative;
+  transition: background-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast) !important;
+}
+
+.opname-tab:not(.active):hover {
+  background: #E2E8F0 !important;
+  color: #0F172A !important;
+  transform: translateY(-1px);
+}
+
+.opname-tab:not(.active):hover svg {
+  color: #0F172A !important;
+}
+
+@media (max-width: 540px) {
+  .pagination {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
 /* Badges */
 .badge {
   display: inline-flex;
@@ -496,6 +637,23 @@ input, select, textarea {
 
 .animate-fade-in {
   animation: fadeIn 0.15s ease-out forwards;
+}
+
+@keyframes pageRouteEnter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0) scale(0.998);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+.page-route-motion {
+  animation: pageRouteEnter 380ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  transform-origin: top center;
+  will-change: opacity, transform;
 }
 
 @keyframes pulseSubtle {

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { readAuthCache, writeAuthCache, hasAppHydrated, markAppHydrated } from './auth-cache';
@@ -27,6 +27,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     return false;
   });
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     markAppHydrated();
@@ -70,8 +71,10 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         />
 
         {isAuthReady ? (
-          <main className="page-wrapper animate-fade-in">
-            {children}
+          <main className="page-wrapper">
+            <div key={pathname} className="page-route-motion">
+              {children}
+            </div>
           </main>
         ) : (
           <main className="page-wrapper" aria-busy="true">
