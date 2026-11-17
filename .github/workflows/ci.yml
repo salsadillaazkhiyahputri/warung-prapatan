@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  unit-and-lint:
+    name: Lint, unit tests, and production build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - name: Build Next.js app
+        run: npm run build
+        env:
+          SESSION_SECRET: ci-only-session-secret-with-at-least-32-chars
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+          SUPABASE_SERVICE_ROLE_KEY: local-fixture-key
+          DATABASE_URL: ''
+
+  supabase-e2e:
+    name: Supabase local database and browser E2E
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Start disposable Supabase stack
+        shell: bash
+        run: |
+          supabase start -x studio,mailpit,storage-api,imgproxy,realtime,edge-runtime,logflare,vector,postgres-meta,supavisor > "$RUNNER_TEMP/supabase-start.log" 2>&1 || {
+            cat "$RUNNER_TEMP/supabase-start.log"
+            exit 1
+          }
+          supabase status --output env > "$RUNNER_TEMP/supabase.env"
+          set -a
+          source "$RUNNER_TEMP/supabase.env"
+          set +a
+          {
+            printf 'NEXT_PUBLIC_SUPABASE_URL=%s\n' "$API_URL"
+            printf 'SUPABASE_SERVICE_ROLE_KEY=%s\n' "$SERVICE_ROLE_KEY"
+            printf 'SUPABASE_LOCAL_DB_URL=%s\n' "$DB_URL"
+            printf 'DATABASE_URL=\n'
+          } >> "$GITHUB_ENV"
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+
+      - name: Apply base schema to local Supabase Postgres
+        shell: bash
+        run: psql "$SUPABASE_LOCAL_DB_URL" -v ON_ERROR_STOP=1 -f supabase/schema.sql
+
+      - name: Verify base database constraints and stock trigger
+        shell: bash
+        run: psql "$SUPABASE_LOCAL_DB_URL" -v ON_ERROR_STOP=1 -f supabase/ci-schema-check.sql
+
+      - name: Install CI application schema fixture and test account
+        shell: bash
+        run: |
+          psql "$SUPABASE_LOCAL_DB_URL" -v ON_ERROR_STOP=1 -f supabase/ci-app-schema.sql
+          psql "$SUPABASE_LOCAL_DB_URL" -v ON_ERROR_STOP=1 -f supabase/ci-seed.sql
+
+      - run: npx playwright install --with-deps chromium
+
+      - name: Run browser E2E against local Supabase
+        run: npm run test:e2e
+        env:
+          CI: true
+
+      - name: Stop disposable Supabase stack
+        if: always()
+        run: supabase stop --no-backup

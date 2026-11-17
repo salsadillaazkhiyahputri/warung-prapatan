@@ -6,7 +6,7 @@ import { classifyTransaction, perDay, isCountStale, aggregateKeluarPerHari } fro
 import { ProductSupplierRow, mergeProductSuppliers, matchesProductSearch } from './product-suppliers';
 import { buildCategorySuggestions, uniqueCategories } from './categories';
 import {
-  User, Product, Supplier, SupplierJenis, Transaction, DashboardStats, TransactionType, TransactionKind,
+  User, Product, Supplier, SupplierJenis, Transaction, DashboardStats, TransactionType, TransactionKind, TransactionSource,
   OpnameSession, OpnameDetail, OpnameItem, OpnameItemJenis, KeluarPerHariRow, MasukPerJenisRow, SUPPLIER_JENIS
 } from '@/types';
 
@@ -17,6 +17,21 @@ const MAX_ROWS = 20000;
 const UNIQUE_VIOLATION = '23505';
 const FOREIGN_KEY_VIOLATION = '23503';
 const CHECK_VIOLATION = '23514';
+
+interface TransactionQueryRow {
+  id: number;
+  product_id: number;
+  user_id: string;
+  supplier_id: number | null;
+  type: TransactionType;
+  qty: number;
+  note: string | null;
+  source?: TransactionSource | null;
+  opname_id?: number | null;
+  created_at: string;
+  products?: Product | null;
+  suppliers?: Supplier | null;
+}
 
 export const SUPPLIER_NONAKTIF_MESSAGE = 'Supplier ini sedang nonaktif. Aktifkan dulu di halaman Supplier.';
 export const KOREKSI_STOK_IN_MESSAGE = '"Koreksi Stok" tidak bisa dipakai untuk stok masuk. Pilih supplier yang mengirim barang.';
@@ -104,7 +119,7 @@ function normalizeProduct(raw: Product): Product {
   };
 }
 
-function normalizeTransaction(t: any): Transaction {
+function normalizeTransaction(t: TransactionQueryRow): Transaction {
   const source = t.source === 'opname' ? 'opname' : 'manual';
   const supplier = t.suppliers ?? undefined;
   return {
@@ -362,7 +377,12 @@ export const SupplierService = {
   // Ringkasan barang masuk (bukan koreksi) per jenis supplier untuk rentang tanggal WIB.
   // Supplier nonaktif tetap dihitung: transaksinya fakta masa lalu.
   async masukPerJenis(range: DateRange): Promise<MasukPerJenisRow[]> {
-    const rows = await fetchTransactions('qty, source, note, suppliers(jenis, is_adjustment)', { ...range, type: 'in' });
+    const rows = await fetchTransactions('qty, source, note, suppliers(jenis, is_adjustment)', { ...range, type: 'in' }) as unknown as Array<{
+      qty: number;
+      source?: TransactionSource | null;
+      note: string | null;
+      suppliers?: { jenis?: unknown; is_adjustment?: boolean | null } | null;
+    }>;
     const totals = new Map<SupplierJenis, MasukPerJenisRow>(
       SUPPLIER_JENIS.map((j) => [j, { jenis: j, total_qty: 0, transaction_count: 0 }])
     );
@@ -450,7 +470,7 @@ export async function assertSupplierForStockIn(supplierId: number): Promise<Supp
 // Ambil transaksi per halaman (maks MAX_ROWS) dengan filter dasar.
 async function fetchTransactions(select: string, filters: DateRange & { productId?: number | null; type?: TransactionType }) {
   const db = getSupabaseAdmin();
-  const rows: any[] = [];
+  const rows: Record<string, unknown>[] = [];
   for (let from = 0; from < MAX_ROWS; from += PAGE_SIZE) {
     let builder = db
       .from('transactions')
@@ -464,7 +484,7 @@ async function fetchTransactions(select: string, filters: DateRange & { productI
     if (filters.endDate) builder = builder.lte('created_at', wibEnd(filters.endDate));
     const { data, error } = await builder;
     if (error) throw error;
-    rows.push(...(data ?? []));
+    rows.push(...((data ?? []) as unknown as Record<string, unknown>[]));
     if (!data || data.length < PAGE_SIZE) break;
   }
   return rows;
@@ -486,7 +506,7 @@ export const TransactionService = {
     let type: TransactionType | undefined = filters.type && filters.type !== 'all' ? filters.type : undefined;
     if (kind) type = kind === 'stok_awal' ? undefined : kind === 'masuk' || kind === 'koreksi' ? 'in' : 'out';
 
-    const rows = await fetchTransactions('*, products(*), suppliers(*)', { ...filters, type });
+    const rows = await fetchTransactions('*, products(*), suppliers(*)', { ...filters, type }) as unknown as TransactionQueryRow[];
     const list = rows.map(normalizeTransaction);
     return kind ? list.filter((t) => t.kind === kind) : list;
   },
