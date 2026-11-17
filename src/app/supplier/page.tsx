@@ -171,7 +171,7 @@ export default function SupplierPage() {
 
   const activeCount = suppliers.filter((s) => s.is_active).length;
   const inactiveCount = suppliers.length - activeCount;
-  const visibleSuppliers = showInactive ? suppliers : suppliers.filter((s) => s.is_active);
+  const visibleSuppliers = showInactive ? suppliers.filter((s) => !s.is_active) : suppliers.filter((s) => s.is_active);
 
   const JENIS_PRIORITY: Record<string, number> = {
     utama: 1,
@@ -333,7 +333,7 @@ export default function SupplierPage() {
                 if (inactiveCount === 0) {
                   showToast('Semua supplier saat ini berstatus aktif (0 nonaktif)');
                 } else {
-                  showToast(`Menampilkan ${inactiveCount} supplier nonaktif`);
+                  showToast(`Menampilkan ${inactiveCount} supplier nonaktif saja`);
                 }
               } else {
                 showToast('Menampilkan supplier aktif saja');
@@ -355,7 +355,7 @@ export default function SupplierPage() {
               border: `1.5px solid ${showInactive ? '#0F172A' : '#E2E8F0'}`,
               boxShadow: 'var(--shadow-xs)'
             }}
-            title={showInactive ? 'Klik untuk sembunyikan supplier nonaktif' : 'Klik untuk tampilkan supplier nonaktif'}
+            title={showInactive ? 'Klik untuk kembali ke supplier aktif' : 'Klik untuk tampilkan hanya supplier nonaktif'}
           >
             {showInactive ? <Eye size={15} /> : <EyeOff size={15} style={{ color: '#94A3B8' }} />}
             <span>{showInactive ? 'Menampilkan Nonaktif' : 'Tampilkan Nonaktif'}</span>
@@ -527,7 +527,13 @@ export default function SupplierPage() {
               <tr>
                 <td colSpan={5} style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>
                   <Building2 size={32} style={{ color: '#94A3B8', margin: '0 auto 8px', display: 'block' }} />
-                  <span>{suppliers.length === 0 ? 'Belum ada supplier yang tercatat.' : 'Tidak ada supplier aktif. Klik "Tampilkan Nonaktif" untuk melihat semuanya.'}</span>
+                  <span>
+                    {showInactive
+                      ? 'Tidak ada supplier yang dinonaktifkan.'
+                      : suppliers.length === 0
+                      ? 'Belum ada supplier yang tercatat.'
+                      : 'Tidak ada supplier aktif.'}
+                  </span>
                 </td>
               </tr>
             ) : (
