@@ -2,9 +2,9 @@ import { expect, test } from '@playwright/test';
 
 async function signIn(page: import('@playwright/test').Page) {
   await page.goto('/login');
-  await page.getByPlaceholder('Username Pemilik').fill('pemilik');
-  await page.getByPlaceholder('Password').fill('warung123');
-  await page.getByRole('button', { name: 'Masuk ke Dashboard' }).click();
+  await page.getByLabel('Username').fill('pemilik');
+  await page.getByLabel('Password').fill('warung123');
+  await page.getByRole('button', { name: 'Masuk', exact: true }).click();
   await expect(page).toHaveURL(/\/dashboard$/);
 }
 
@@ -17,9 +17,9 @@ test('API terlindungi sebelum sesi dibuat', async ({ page }) => {
 
 test('login menolak password yang salah', async ({ page }) => {
   await page.goto('/login');
-  await page.getByPlaceholder('Username Pemilik').fill('pemilik');
-  await page.getByPlaceholder('Password').fill('password-salah');
-  await page.getByRole('button', { name: 'Masuk ke Dashboard' }).click();
+  await page.getByLabel('Username').fill('pemilik');
+  await page.getByLabel('Password').fill('password-salah');
+  await page.getByRole('button', { name: 'Masuk', exact: true }).click();
 
   await expect(page.getByText('Username atau password salah')).toBeVisible();
 });
