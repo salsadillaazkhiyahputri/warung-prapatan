@@ -8,35 +8,30 @@ import {
   AlertCircle,
   ArrowRight,
   Shield,
-  Check,
   Store,
   Eye,
   EyeOff
 } from 'lucide-react';
 
 export default function LoginPage() {
-  const [username, setUsername] = useState('pemilik');
-  const [password, setPassword] = useState('warung123');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [appliedDemo, setAppliedDemo] = useState(false);
   const router = useRouter();
 
-  const handleLogin = async (e?: React.FormEvent, customUser?: string, customPass?: string) => {
+  const handleLogin = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setErrorMsg('');
     setIsLoading(true);
-
-    const userToLogin = customUser || username;
-    const passToLogin = customPass || password;
 
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: userToLogin, password: passToLogin })
+        body: JSON.stringify({ username, password })
       });
 
       const data = await res.json();
@@ -59,93 +54,103 @@ export default function LoginPage() {
     }
   };
 
-  const handleFillDemo = () => {
-    setUsername('pemilik');
-    setPassword('warung123');
-    setAppliedDemo(true);
-    setTimeout(() => setAppliedDemo(false), 2000);
-  };
-
   return (
     <div className="login-page-viewport">
-      {/* Kartu Horizontal Ditengah Layar dengan Proporsi Pas & Sedikit Diperbesar */}
+      {/* Kartu Login Simetris 2 Sisi dengan Tema Deep Navy SaaS */}
       <div className="login-card-balanced animate-fade-in">
         
         {/* ========================================================
-            SISI KIRI: Background Deep Navy (Logo & Warung Prapatan di Bagian Atas)
+            SISI KIRI: Visual Hero Banner (Deep Navy & Slate)
             ======================================================== */}
         <div className="login-banner-left">
           <div className="login-banner-content">
-            {/* Logo Toko & Tulisan Warung Prapatan Bersebelahan di Bagian Atas */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '14px' }}>
+            {/* Identitas Brand Toko (Konsisten dengan Sidebar Dashboard) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <div
                 style={{
-                  width: '48px',
-                  height: '48px',
-                  borderRadius: '13px',
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '10px',
                   background: 'linear-gradient(135deg, #1E293B 0%, #334155 100%)',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  border: '1px solid rgba(255, 255, 255, 0.14)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   color: '#38BDF8',
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+                  boxShadow: '0 2px 6px rgba(0, 0, 0, 0.25)',
                   flexShrink: 0
                 }}
               >
-                <Store size={24} />
+                <Store size={20} />
               </div>
               <div>
-                <h1
+                <div
                   style={{
-                    fontSize: '24px',
-                    fontWeight: 800,
+                    fontSize: '17.5px',
+                    fontWeight: 700,
                     letterSpacing: '-0.01em',
                     color: '#FFFFFF',
-                    lineHeight: 1.2,
-                    margin: 0
+                    lineHeight: 1.2
                   }}
                 >
                   Warung Prapatan
-                </h1>
-                <span
+                </div>
+                <div
                   style={{
-                    fontSize: '12px',
+                    fontSize: '11px',
                     fontWeight: 600,
                     color: '#38BDF8',
                     letterSpacing: '0.04em'
                   }}
                 >
                   Sistem Manajemen Stok
-                </span>
+                </div>
               </div>
             </div>
 
-            <p
+            {/* Bagian Tengah: Sapaan Hangat & Deskripsi Sistem yang Berisi */}
+            <div style={{ marginTop: 'auto', marginBottom: 'auto', paddingTop: '34px', paddingBottom: '24px' }}>
+              <h1 className="login-hero-title">
+                Halo,<br />
+                Selamat Datang!
+              </h1>
+              <p className="login-hero-desc">
+                Sistem pencatatan persediaan barang dan pemantauan transaksi toko secara terstruktur, cepat, dan akurat.
+              </p>
+              <div className="login-hero-pill">
+                <Shield size={14} style={{ color: '#38BDF8', flexShrink: 0 }} />
+                <span>Akses Khusus Pemilik Toko</span>
+              </div>
+            </div>
+
+            {/* Bagian Bawah: Catatan Sistem Terpusat */}
+            <div
               style={{
-                fontSize: '13.5px',
-                lineHeight: 1.65,
-                color: '#CBD5E1',
-                margin: '8px 0 0 0',
-                maxWidth: '360px',
-                textAlign: 'left'
+                paddingTop: '16px',
+                borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
               }}
             >
-              Sistem pencatatan persediaan barang dan riwayat transaksi masuk-keluar toko secara terstruktur, cepat, dan akurat.
-            </p>
+              <span style={{ fontSize: '11.5px', color: '#94A3B8', letterSpacing: '0.02em' }}>
+                Sistem Inventaris Terpadu · Warung Prapatan
+              </span>
+            </div>
           </div>
         </div>
 
         {/* ========================================================
-            SISI KANAN: Formulir Masuk 1-Role Pemilik Toko
+            SISI KANAN: Formulir Masuk Akun
             ======================================================== */}
         <div className="login-card-right">
           <div className="login-card-form">
+            {/* Header Formulir */}
             <div style={{ marginBottom: '24px' }}>
               <h2
                 style={{
-                  fontSize: '26px',
-                  fontWeight: 800,
+                  fontSize: '23px',
+                  fontWeight: 700,
                   color: '#0F172A',
                   letterSpacing: '-0.02em',
                   margin: 0
@@ -155,17 +160,17 @@ export default function LoginPage() {
               </h2>
               <p
                 style={{
-                  fontSize: '13.5px',
+                  fontSize: '13px',
                   color: '#64748B',
                   marginTop: '5px',
                   lineHeight: 1.45
                 }}
               >
-                Khusus akses Pemilik Toko untuk mengelola data inventaris toko.
+                Silakan masukkan username dan password Anda.
               </p>
             </div>
 
-            {/* Error Alert */}
+            {/* Pesan Error Jika Kredensial Salah */}
             {errorMsg && (
               <div
                 style={{
@@ -175,10 +180,10 @@ export default function LoginPage() {
                   padding: '10px 14px',
                   background: '#FEF2F2',
                   border: '1px solid #FECACA',
-                  borderRadius: '8px',
+                  borderRadius: '10px',
                   color: '#DC2626',
                   fontSize: '13px',
-                  marginBottom: '16px'
+                  marginBottom: '18px'
                 }}
               >
                 <AlertCircle size={16} style={{ flexShrink: 0 }} />
@@ -187,133 +192,79 @@ export default function LoginPage() {
             )}
 
             <form onSubmit={handleLogin}>
-              {/* Field Username */}
-              <div style={{ marginBottom: '16px' }}>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    color: '#334155',
-                    marginBottom: '6px'
-                  }}
-                  htmlFor="username"
-                >
-                  Username
-                </label>
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                  <span
-                    style={{
-                      position: 'absolute',
-                      left: '14px',
-                      color: '#64748B',
-                      display: 'flex',
-                      alignItems: 'center',
-                      pointerEvents: 'none'
-                    }}
-                  >
-                    <User size={17} />
-                  </span>
+              {/* Field Username: Card Modern dengan Kotak Icon di Kiri */}
+              <div className="login-input-card">
+                <div className="login-input-icon-box">
+                  <User size={17} />
+                </div>
+                <div className="login-input-field-wrap">
+                  <label htmlFor="username" className="login-input-label">
+                    Username
+                  </label>
                   <input
                     id="username"
                     type="text"
-                    placeholder="Username Pemilik"
+                    placeholder="Masukkan username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     autoComplete="username"
                     required
-                    style={{
-                      width: '100%',
-                      height: '46px',
-                      padding: '0 14px 0 42px',
-                      background: '#F8FAFC',
-                      border: '1px solid #CBD5E1',
-                      borderRadius: '10px',
-                      fontSize: '14px',
-                      color: '#0F172A',
-                      outline: 'none',
-                      transition: 'all 0.2s ease'
-                    }}
+                    className="login-input-element"
                   />
                 </div>
               </div>
 
-              {/* Field Password dengan Toggle Icon Mata */}
-              <div style={{ marginBottom: '16px' }}>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    color: '#334155',
-                    marginBottom: '6px'
-                  }}
-                  htmlFor="password"
-                >
-                  Password
-                </label>
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                  <span
-                    style={{
-                      position: 'absolute',
-                      left: '14px',
-                      color: '#64748B',
-                      display: 'flex',
-                      alignItems: 'center',
-                      pointerEvents: 'none'
-                    }}
-                  >
-                    <Lock size={17} />
-                  </span>
+              {/* Field Password: Card Modern dengan Kotak Icon & Toggle Mata */}
+              <div className="login-input-card">
+                <div className="login-input-icon-box">
+                  <Lock size={17} />
+                </div>
+                <div className="login-input-field-wrap">
+                  <label htmlFor="password" className="login-input-label">
+                    Password
+                  </label>
                   <input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
-                    placeholder="Password"
+                    placeholder="Masukkan password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     autoComplete="current-password"
                     required
-                    style={{
-                      width: '100%',
-                      height: '46px',
-                      padding: '0 44px 0 42px',
-                      background: '#F8FAFC',
-                      border: '1px solid #CBD5E1',
-                      borderRadius: '10px',
-                      fontSize: '14px',
-                      color: '#0F172A',
-                      outline: 'none',
-                      transition: 'all 0.2s ease'
-                    }}
+                    className="login-input-element"
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    style={{
-                      position: 'absolute',
-                      right: '10px',
-                      color: '#64748B',
-                      background: 'transparent',
-                      border: 'none',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: '6px',
-                      borderRadius: '6px',
-                      transition: 'color 0.15s ease'
-                    }}
-                    className="password-toggle-btn"
-                    title={showPassword ? 'Sembunyikan password' : 'Lihat password'}
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="login-password-toggle"
+                  title={showPassword ? 'Sembunyikan password' : 'Lihat password'}
+                >
+                  {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                </button>
               </div>
 
-              {/* Checkbox Ingat Saya */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '22px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#475569', cursor: 'pointer', userSelect: 'none' }}>
+              {/* Checkbox Ingat Akun */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginTop: '16px',
+                  marginBottom: '22px'
+                }}
+              >
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontSize: '13px',
+                    color: '#475569',
+                    cursor: 'pointer',
+                    userSelect: 'none'
+                  }}
+                >
                   <input
                     type="checkbox"
                     checked={rememberMe}
@@ -324,99 +275,33 @@ export default function LoginPage() {
                 </label>
               </div>
 
-              {/* Tombol Masuk Utama */}
+              {/* Tombol Masuk Utama (Konsisten dengan Desain Web) */}
               <button
                 type="submit"
                 disabled={isLoading}
-                style={{
-                  width: '100%',
-                  height: '46px',
-                  background: '#0F172A',
-                  color: '#FFFFFF',
-                  border: '1px solid #0F172A',
-                  borderRadius: '10px',
-                  fontSize: '14.5px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                  boxShadow: '0 2px 4px rgba(15, 23, 42, 0.15)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px'
-                }}
-                className="btn-navy-hover"
+                className="login-submit-btn"
               >
                 {isLoading ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div style={{ width: '16px', height: '16px', border: '2px solid rgba(255, 255, 255, 0.3)', borderTopColor: '#FFFFFF', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span className="login-spinner" />
                     <span>Memverifikasi...</span>
-                  </div>
+                  </span>
                 ) : (
                   <>
-                    <span>Masuk ke Dashboard</span>
-                    <ArrowRight size={17} />
+                    <span>Masuk</span>
+                    <ArrowRight size={16} />
                   </>
                 )}
               </button>
             </form>
 
-            {/* Kredensial Demo Rapi (1 Role Pemilik Toko) */}
-            <div
-              style={{
-                marginTop: '20px',
-                padding: '10px 14px',
-                background: '#F8FAFC',
-                border: '1px solid #E2E8F0',
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: '8px'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Shield size={14} style={{ color: '#0F172A' }} />
-                <span style={{ fontSize: '12px', fontFamily: 'monospace', color: '#0F172A', fontWeight: 600 }}>
-                  pemilik / warung123
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={handleFillDemo}
-                style={{
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  color: '#0F172A',
-                  background: '#FFFFFF',
-                  border: '1px solid #CBD5E1',
-                  padding: '4px 9px',
-                  borderRadius: '5px',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                {appliedDemo ? (
-                  <>
-                    <Check size={12} style={{ color: '#059669' }} />
-                    <span style={{ color: '#059669' }}>Terisi</span>
-                  </>
-                ) : (
-                  <span>Isi Otomatis</span>
-                )}
-              </button>
-            </div>
-
-            {/* Footer Bawah */}
+            {/* Footer Form */}
             <p
               style={{
                 fontSize: '12px',
                 color: '#94A3B8',
                 textAlign: 'center',
-                marginTop: '22px',
+                marginTop: '28px',
                 marginBottom: 0
               }}
             >
@@ -426,21 +311,6 @@ export default function LoginPage() {
         </div>
 
       </div>
-
-      <style jsx global>{`
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-        .btn-navy-hover:hover:not(:disabled) {
-          background: #1E293B !important;
-          border-color: #1E293B !important;
-          transform: translateY(-0.5px) !important;
-          box-shadow: 0 4px 12px rgba(15, 23, 42, 0.25) !important;
-        }
-        .password-toggle-btn:hover {
-          color: #0F172A !important;
-        }
-      `}</style>
     </div>
   );
 }
