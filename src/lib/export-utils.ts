@@ -397,7 +397,7 @@ export function exportTransactionsToPDF(transactions: Transaction[], filename?: 
       }
     },
     didDrawPage: function(data) {
-      const pageCount = (doc.internal as any).getNumberOfPages();
+      const pageCount = doc.getNumberOfPages();
       const pageCurrent = data.pageNumber;
 
       doc.setDrawColor(226, 232, 240);

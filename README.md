@@ -1,4 +1,6 @@
 # Sistem Informasi Pencatatan Stok Warung Prapatan
+
+Panduan kontribusi, push, Pull Request, dan merge tersedia di [CONTRIBUTING.md](CONTRIBUTING.md).
 ### Capstone Project 2 — Program Studi Teknologi Informasi, Universitas Muhammadiyah Yogyakarta (2026)
 
 Aplikasi web full-stack terintegrasi yang menggabungkan **Dashboard Web Next.js**, **AI Agent Chatbot Telegram (Llama via Groq & n8n)**, dan basis data relasional **PostgreSQL / Supabase** untuk digitalisasi pencatatan stok barang pada UMKM Warung Prapatan.
