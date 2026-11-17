@@ -17,18 +17,17 @@ DATABASE & INTEGRATION
 ├── Database
 ├── Query
 ├── Authentication support
-└── Integrasi dashboard ↔ chatbot
+└── Integrasi dashboard <-> chatbot
 
 
 ANGGOTA 2: Salsa Dilla Azkhiyah Putri (20230140077)
-DASHBOARD CORE
+DASHBOARD CORE & STOCK OPNAME
 │
-├── Login
-├── Layout
-├── Sidebar
-├── Dashboard
-├── Summary card
-└── Transaksi terbaru
+├── Login & Manajemen Sesi
+├── Arsitektur Layout & Sidebar
+├── Dashboard & Summary Card
+├── Monitoring Transaksi Terbaru
+└── Modul Stok Opname
 
 
 ANGGOTA 3: Refky Muhammad Syahrin (20230140050)
@@ -103,14 +102,7 @@ npm run dev
 ```
 Buka peramban pada alamat [http://localhost:3000](http://localhost:3000).
 
----
 
-## 🔐 Kredensial Login Pemilik (Default)
-- **Halaman Login**: `/login`
-- **Username**: `pemilik`
-- **Password**: `warung123`
-
----
 
 ## 📁 Struktur Berkas Proyek
 
