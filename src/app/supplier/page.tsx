@@ -13,10 +13,8 @@ import {
   Edit2,
   Lock,
   Plus,
-  Info,
   CheckCircle2,
   AlertCircle,
-  RefreshCw,
   Building2,
   Power,
   Trash2,
@@ -321,7 +319,7 @@ export default function SupplierPage() {
         {masukError ? (
           <p style={{ fontSize: '13px', color: '#DC2626', margin: 0 }}>{masukError}</p>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+          <div className="grid-responsive-3" style={{ gap: '12px' }}>
             {SUPPLIER_JENIS.map((j) => {
               const row = masuk.find((x) => x.jenis === j) ?? { jenis: j, total_qty: 0, transaction_count: 0 };
               const maxQty = Math.max(1, ...masuk.map((x) => x.total_qty));
@@ -494,7 +492,7 @@ export default function SupplierPage() {
         <div>
           <button
             onClick={() => { setAddName(''); setAddJenis(''); setErrorMessage(''); setIsAddModalOpen(true); }}
-            className="btn btn-primary"
+            className="btn btn-primary btn-mobile-full"
             style={{ height: '36px', padding: '0 14px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
           >
             <Plus size={14} />
@@ -688,7 +686,7 @@ export default function SupplierPage() {
               ))}
             </select>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px', paddingTop: '16px', borderTop: '1px solid #E2E8F0' }}>
+          <div className="modal-footer">
             <button type="button" className="btn btn-secondary" onClick={() => setIsAddModalOpen(false)}>Batal</button>
             <button type="submit" className="btn btn-primary" disabled={isSaving}>{isSaving ? 'Menyimpan...' : 'Simpan'}</button>
           </div>
@@ -745,17 +743,7 @@ export default function SupplierPage() {
             </select>
           </div>
 
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'flex-end',
-              gap: '10px',
-              marginTop: '20px',
-              paddingTop: '16px',
-              borderTop: '1px solid #E2E8F0'
-            }}
-          >
+          <div className="modal-footer">
             <button
               type="button"
               className="btn btn-secondary"
@@ -795,7 +783,7 @@ export default function SupplierPage() {
             <>Nonaktifkan <strong>{confirmAction?.supplier.name}</strong>? Bot dan form stok masuk tidak akan menawarkannya lagi. Riwayat tetap ada dan bisa diaktifkan lagi kapan saja.</>
           )}
         </p>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px', paddingTop: '16px', borderTop: '1px solid #E2E8F0' }}>
+        <div className="modal-footer">
           <button type="button" className="btn btn-secondary" onClick={() => setConfirmAction(null)} disabled={busyId !== null}>
             Batal
           </button>
@@ -820,29 +808,6 @@ export default function SupplierPage() {
           )}
         </div>
       </Modal>
-
-      <style jsx global>{`
-        .sup-icon-btn {
-          width: 36px;
-          height: 36px;
-          padding: 0;
-          border-radius: var(--radius-md);
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          transition: all var(--transition-fast);
-          cursor: pointer;
-        }
-        .sup-icon-btn.action-btn-edit { color: #334155; background: #F8FAFC; border: 1px solid #E2E8F0; }
-        .sup-icon-btn.action-btn-edit:not(:disabled):hover { background: #0F172A; color: #FFFFFF; border-color: #0F172A; }
-        .sup-icon-btn.action-btn-power { color: #64748B; background: #F8FAFC; border: 1px solid #E2E8F0; }
-        .sup-icon-btn.action-btn-power:not(:disabled):hover { background: #FEF2F2; color: #DC2626; border-color: #FECACA; }
-        .sup-icon-btn.action-btn-activate { color: #059669; background: #ECFDF5; border: 1px solid #A7F3D0; }
-        .sup-icon-btn.action-btn-activate:not(:disabled):hover { background: #059669; color: #FFFFFF; border-color: #059669; }
-        .sup-icon-btn.action-btn-delete { color: #DC2626; background: #FEF2F2; border: 1px solid #FECACA; }
-        .sup-icon-btn.action-btn-delete:not(:disabled):hover { background: #DC2626; color: #FFFFFF; border-color: #DC2626; }
-        .sup-icon-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-      `}</style>
     </DashboardLayout>
   );
 }
