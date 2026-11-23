@@ -29,50 +29,52 @@ export const Header: React.FC<HeaderProps> = ({
   }, []);
 
   return (
-    <header
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '16px 36px',
-        borderBottom: '1px solid #E2E8F0',
-        background: '#FFFFFF',
-        position: 'sticky',
-        top: 0,
-        zIndex: 30,
-        boxShadow: '0 1px 2px 0 rgba(15, 23, 42, 0.03)'
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+    <header className="header-bar">
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: 1 }}>
         <button
           onClick={onToggleMobileMenu}
-          style={{
-            display: 'none',
-            color: '#0F172A',
-            padding: '7px',
-            borderRadius: 'var(--radius-sm)',
-            border: '1px solid #E2E8F0',
-            background: '#FFFFFF'
-          }}
           className="mobile-toggle-btn"
-          title="Buka Menu"
+          title="Buka Menu Navigasi"
+          aria-label="Buka Menu Navigasi"
         >
           <Menu size={18} />
         </button>
 
-        <div>
-          <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#0F172A', lineHeight: 1.25, letterSpacing: '-0.025em' }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <h2
+            style={{
+              fontSize: '20px',
+              fontWeight: 700,
+              color: '#0F172A',
+              lineHeight: 1.25,
+              letterSpacing: '-0.02em',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }}
+          >
             {title}
           </h2>
           {subtitle && (
-            <p style={{ fontSize: '13.5px', color: '#64748B', marginTop: '3px', fontWeight: 400, lineHeight: 1.4 }}>
+            <p
+              style={{
+                fontSize: '12.5px',
+                color: '#64748B',
+                marginTop: '2px',
+                fontWeight: 400,
+                lineHeight: 1.35,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}
+            >
               {subtitle}
             </p>
           )}
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
         <div
           style={{
             display: 'flex',
