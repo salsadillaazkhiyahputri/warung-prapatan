@@ -11,8 +11,7 @@ import {
   History,
   ClipboardCheck,
   LogOut,
-  Store,
-  ChevronRight
+  X
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -67,87 +66,70 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
 
   return (
     <>
-      {/* Mobile Backdrop */}
-      {isMobileOpen && (
-        <div
-          onClick={onCloseMobile}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(15, 23, 42, 0.5)',
-            zIndex: 40
-          }}
-        />
-      )}
+      {/* Mobile & Tablet Backdrop */}
+      <div
+        onClick={onCloseMobile}
+        className={`sidebar-backdrop${isMobileOpen ? ' active' : ''}`}
+        aria-hidden="true"
+      />
 
       <aside
-        style={{
-          width: '260px',
-          background: '#0F172A',
-          borderRight: '1px solid rgba(255, 255, 255, 0.08)',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          flexShrink: 0,
-          transition: 'transform var(--transition-normal)',
-          zIndex: 50,
-          // Tetap di tempat saat halaman digulir; menu yang panjang punya scroll sendiri.
-          position: 'sticky',
-          top: 0,
-          height: '100vh',
-          alignSelf: 'flex-start',
-          overflowY: 'auto',
-          ...(isMobileOpen ? {
-            position: 'fixed',
-            top: 0,
-            bottom: 0,
-            left: 0,
-            transform: 'translateX(0)'
-          } : {})
-        }}
+        className={`sidebar${isMobileOpen ? ' mobile-open' : ''}`}
+        aria-label="Menu Utama"
       >
         {/* Brand Header */}
         <div>
           <div
             style={{
-              padding: '22px 20px',
+              padding: '20px 18px',
               borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
               display: 'flex',
               alignItems: 'center',
+              justifyContent: 'space-between',
               gap: '12px'
             }}
           >
-            <div
-              style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '10px',
-                background: '#FFFFFF',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 2px 6px rgba(0, 0, 0, 0.2)',
-                overflow: 'hidden',
-                flexShrink: 0
-              }}
-            >
-              <img
-                src="/logo-icon.png?v=2"
-                alt="Warung Prapatan"
-                style={{ width: '32px', height: '32px', objectFit: 'contain' }}
-              />
-            </div>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <h1 style={{ fontSize: '15.5px', fontWeight: 700, color: '#FFFFFF', lineHeight: 1.2, letterSpacing: '-0.01em' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+              <div
+                style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '10px',
+                  background: '#FFFFFF',
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 2px 6px rgba(0, 0, 0, 0.2)',
+                  overflow: 'hidden',
+                  flexShrink: 0
+                }}
+              >
+                <img
+                  src="/logo-icon.png?v=2"
+                  alt="Warung Prapatan"
+                  style={{ width: '30px', height: '30px', objectFit: 'contain' }}
+                />
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <h1 style={{ fontSize: '15px', fontWeight: 700, color: '#FFFFFF', lineHeight: 1.2, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   Warung Prapatan
                 </h1>
+                <p style={{ fontSize: '11px', color: '#94A3B8', marginTop: '2px', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  Sistem Manajemen Stok
+                </p>
               </div>
-              <p style={{ fontSize: '11.5px', color: '#94A3B8', marginTop: '2px', fontWeight: 500 }}>
-                Sistem Manajemen Stok
-              </p>
             </div>
+
+            {/* Mobile close button */}
+            <button
+              onClick={onCloseMobile}
+              className="sidebar-close-btn"
+              title="Tutup Menu"
+              aria-label="Tutup Menu"
+            >
+              <X size={16} />
+            </button>
           </div>
 
           {/* Navigation Items */}
@@ -266,14 +248,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, onCloseMobile })
           </button>
         </div>
       </aside>
-
-      <style jsx global>{`
-        .logout-btn:hover {
-          background: #DC2626 !important;
-          color: #FFFFFF !important;
-          border-color: #DC2626 !important;
-        }
-      `}</style>
     </>
   );
 };
