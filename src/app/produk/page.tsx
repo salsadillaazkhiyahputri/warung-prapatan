@@ -19,7 +19,6 @@ import {
   Trash2,
   AlertCircle,
   CheckCircle2,
-  RefreshCw,
   Boxes
 } from 'lucide-react';
 
@@ -420,13 +419,13 @@ export default function ProdukPage() {
 
       {/* Toolbar: Search, Category Dropdown & Action Buttons */}
       <div className="page-header-box" style={{ marginBottom: '22px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: '1', maxWidth: '640px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1', flexWrap: 'wrap', width: '100%' }}>
           <form
             onSubmit={handleSearchSubmit}
             style={{
               position: 'relative',
-              flex: '1',
-              minWidth: '220px'
+              flex: '1 1 200px',
+              minWidth: '180px'
             }}
           >
             <span
@@ -453,7 +452,7 @@ export default function ProdukPage() {
           </form>
 
           {/* Category Dropdown */}
-          <div style={{ width: '160px' }}>
+          <div style={{ flex: '0 1 160px', minWidth: '130px' }}>
             <select
               className="form-select"
               style={{ height: '38px', fontSize: '13px' }}
@@ -510,7 +509,7 @@ export default function ProdukPage() {
 
         {/* Action Buttons */}
         <div>
-          <button onClick={openAddModal} className="btn btn-primary btn-sm">
+          <button onClick={openAddModal} className="btn btn-primary btn-sm btn-mobile-full">
             <Plus size={15} />
             <span>Tambah produk</span>
           </button>
@@ -754,7 +753,7 @@ export default function ProdukPage() {
 
           {renderCategoryInput()}
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '8px' }}>
+          <div className="grid-responsive-2" style={{ marginBottom: '8px' }}>
             <div className="form-group">
               <label className="form-label">Stok Awal (pcs)</label>
               <input
@@ -781,16 +780,7 @@ export default function ProdukPage() {
             </div>
           </div>
 
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              gap: '10px',
-              marginTop: '20px',
-              paddingTop: '16px',
-              borderTop: '1px solid #E2E8F0'
-            }}
-          >
+          <div className="modal-footer">
             <button
               type="button"
               className="btn btn-secondary"
@@ -857,7 +847,7 @@ export default function ProdukPage() {
 
           {renderCategoryInput()}
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '8px' }}>
+          <div className="grid-responsive-2" style={{ marginBottom: '8px' }}>
             <div className="form-group">
               <label className="form-label">Batas Minimum Stok (pcs) *</label>
               <input
@@ -888,16 +878,7 @@ export default function ProdukPage() {
             * Stok saat ini diubah lewat menu Riwayat Transaksi atau stok opname Telegram.
           </p>
 
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              gap: '10px',
-              marginTop: '20px',
-              paddingTop: '16px',
-              borderTop: '1px solid #E2E8F0'
-            }}
-          >
+          <div className="modal-footer">
             <button
               type="button"
               className="btn btn-secondary"
@@ -950,7 +931,7 @@ export default function ProdukPage() {
           </p>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
+        <div className="modal-footer" style={{ justifyContent: 'center' }}>
           <button
             type="button"
             className="btn btn-secondary"
@@ -968,19 +949,6 @@ export default function ProdukPage() {
           </button>
         </div>
       </Modal>
-
-      <style jsx global>{`
-        .action-btn-edit:hover {
-          background: #0F172A !important;
-          color: #FFFFFF !important;
-          border-color: #0F172A !important;
-        }
-        .action-btn-delete:hover {
-          background: #DC2626 !important;
-          color: #FFFFFF !important;
-          border-color: #DC2626 !important;
-        }
-      `}</style>
     </DashboardLayout>
   );
 }
