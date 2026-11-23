@@ -8,7 +8,7 @@ import { Pagination, usePagination } from '@/components/ui/Pagination';
 import { DEFAULT_CATEGORY, KeluarPerHariRow, OpnameDetail, OpnameItemJenis, OpnameSession, Product } from '@/types';
 import { formatDateOnly, formatDateTime } from '@/lib/export-utils';
 import { isCountStale, relativeDayLabel } from '@/lib/stock-labels';
-import { AlertCircle, ClipboardCheck, Eye, Filter, Info, RefreshCw, RotateCcw, TrendingDown, Calendar } from 'lucide-react';
+import { AlertCircle, ClipboardCheck, Eye, Filter, Info, RotateCcw, TrendingDown, Calendar } from 'lucide-react';
 import { getClientCache, setClientCache } from '@/lib/client-cache';
 
 type Tab = 'sesi' | 'keluar';
@@ -280,7 +280,7 @@ export default function OpnamePage() {
             )}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+          <div className="grid-responsive-filters">
             {renderDateInput('Dari Tanggal', startDate, setStartDate, endDate || undefined)}
             {renderDateInput('Sampai Tanggal', endDate, setEndDate, undefined, startDate || undefined)}
             <div>
@@ -326,7 +326,7 @@ export default function OpnamePage() {
             )}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+          <div className="grid-responsive-filters">
             {renderDateInput('Dari Tanggal', kStart || keluarRange?.startDate || '', setKStart, kEnd || undefined)}
             {renderDateInput('Sampai Tanggal', kEnd || keluarRange?.endDate || '', setKEnd, undefined, kStart || undefined)}
             <div>
@@ -353,13 +353,16 @@ export default function OpnamePage() {
       {/* Segmented Tab Bar (Sekarang Berada di Bawah Filter) */}
       <div
         style={{
-          display: 'inline-flex',
+          display: 'flex',
+          flexWrap: 'wrap',
           background: '#F1F5F9',
           padding: '4px',
           borderRadius: 'var(--radius-md)',
           marginBottom: '20px',
           gap: '4px',
-          border: '1px solid #E2E8F0'
+          border: '1px solid #E2E8F0',
+          width: 'fit-content',
+          maxWidth: '100%'
         }}
       >
         <button
@@ -370,17 +373,19 @@ export default function OpnamePage() {
           style={{
             display: 'inline-flex',
             alignItems: 'center',
+            justifyContent: 'center',
             gap: '8px',
-            padding: '8px 18px',
+            padding: '8px 14px',
             borderRadius: 'var(--radius-sm)',
-            fontSize: '13.5px',
+            fontSize: '13px',
             fontWeight: tab === 'sesi' ? 700 : 500,
             background: tab === 'sesi' ? '#FFFFFF' : 'transparent',
             color: tab === 'sesi' ? '#0F172A' : '#64748B',
             border: tab === 'sesi' ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid transparent',
             boxShadow: tab === 'sesi' ? 'var(--shadow-xs)' : 'none',
             cursor: 'pointer',
-            transition: 'all var(--transition-fast)'
+            transition: 'all var(--transition-fast)',
+            flex: '1 1 auto'
           }}
         >
           <ClipboardCheck size={16} style={{ color: tab === 'sesi' ? '#0F172A' : '#94A3B8' }} />
@@ -407,17 +412,19 @@ export default function OpnamePage() {
           style={{
             display: 'inline-flex',
             alignItems: 'center',
+            justifyContent: 'center',
             gap: '8px',
-            padding: '8px 18px',
+            padding: '8px 14px',
             borderRadius: 'var(--radius-sm)',
-            fontSize: '13.5px',
+            fontSize: '13px',
             fontWeight: tab === 'keluar' ? 700 : 500,
             background: tab === 'keluar' ? '#FFFFFF' : 'transparent',
             color: tab === 'keluar' ? '#0F172A' : '#64748B',
             border: tab === 'keluar' ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid transparent',
             boxShadow: tab === 'keluar' ? 'var(--shadow-xs)' : 'none',
             cursor: 'pointer',
-            transition: 'all var(--transition-fast)'
+            transition: 'all var(--transition-fast)',
+            flex: '1 1 auto'
           }}
         >
           <TrendingDown size={16} style={{ color: tab === 'keluar' ? '#0F172A' : '#94A3B8' }} />
