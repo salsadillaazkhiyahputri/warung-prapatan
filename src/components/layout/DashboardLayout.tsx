@@ -104,17 +104,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           </main>
         )}
       </div>
-
-      <style jsx global>{`
-        @media (max-width: 768px) {
-          .mobile-toggle-btn {
-            display: flex !important;
-          }
-          .date-pill {
-            display: none !important;
-          }
-        }
-      `}</style>
     </div>
   );
 };
