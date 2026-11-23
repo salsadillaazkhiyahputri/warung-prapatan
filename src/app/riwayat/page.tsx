@@ -16,7 +16,6 @@ import {
   FileSpreadsheet,
   FileText,
   RotateCcw,
-  RefreshCw,
   PlusCircle,
   Receipt,
   CheckCircle2,
@@ -360,10 +359,11 @@ export default function RiwayatPage() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           <button
             onClick={openManualModal}
             className="btn btn-secondary btn-sm"
+            style={{ flex: '1 1 auto' }}
           >
             <PlusCircle size={15} />
             <span>Catat Manual</span>
@@ -372,6 +372,7 @@ export default function RiwayatPage() {
           <button
             onClick={() => setIsExportModalOpen(true)}
             className="btn btn-primary btn-sm"
+            style={{ flex: '1 1 auto' }}
           >
             <Download size={15} />
             <span>Ekspor Laporan</span>
@@ -419,13 +420,7 @@ export default function RiwayatPage() {
           )}
         </div>
 
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
-            gap: '16px'
-          }}
-        >
+        <div className="grid-responsive-filters">
           {/* Dari Tanggal (DD/MM/YYYY) */}
           <div>
             <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13.5px', fontWeight: 600, color: '#1E293B', marginBottom: '8px' }}>
@@ -443,26 +438,18 @@ export default function RiwayatPage() {
                 })() : ''}
                 className="form-input"
                 style={{ paddingRight: '38px', cursor: 'pointer', background: '#FFFFFF', height: '42px', fontSize: '14px', borderRadius: '8px' }}
-                onClick={(e) => {
-                  const dateInput = e.currentTarget.nextElementSibling as HTMLInputElement;
-                  if (dateInput) {
-                    if (typeof dateInput.showPicker === 'function') dateInput.showPicker();
-                    else dateInput.focus();
-                  }
-                }}
               />
               <input
                 type="date"
                 value={startDate}
+                max={endDate || undefined}
                 onChange={(e) => setStartDate(e.target.value)}
                 style={{
                   position: 'absolute',
-                  right: '6px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
+                  inset: 0,
                   opacity: 0,
-                  width: '28px',
-                  height: '28px',
+                  width: '100%',
+                  height: '100%',
                   cursor: 'pointer'
                 }}
               />
@@ -497,26 +484,18 @@ export default function RiwayatPage() {
                 })() : ''}
                 className="form-input"
                 style={{ paddingRight: '38px', cursor: 'pointer', background: '#FFFFFF', height: '42px', fontSize: '14px', borderRadius: '8px' }}
-                onClick={(e) => {
-                  const dateInput = e.currentTarget.nextElementSibling as HTMLInputElement;
-                  if (dateInput) {
-                    if (typeof dateInput.showPicker === 'function') dateInput.showPicker();
-                    else dateInput.focus();
-                  }
-                }}
               />
               <input
                 type="date"
                 value={endDate}
+                min={startDate || undefined}
                 onChange={(e) => setEndDate(e.target.value)}
                 style={{
                   position: 'absolute',
-                  right: '6px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
+                  inset: 0,
                   opacity: 0,
-                  width: '28px',
-                  height: '28px',
+                  width: '100%',
+                  height: '100%',
                   cursor: 'pointer'
                 }}
               />
@@ -882,16 +861,7 @@ export default function RiwayatPage() {
             </div>
           )}
 
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              gap: '10px',
-              marginTop: '20px',
-              paddingTop: '16px',
-              borderTop: '1px solid #E2E8F0'
-            }}
-          >
+          <div className="modal-footer">
             <button
               type="button"
               className="btn btn-secondary"
@@ -923,7 +893,7 @@ export default function RiwayatPage() {
             <strong>{pairConfirm?.productName}</strong> belum pernah masuk dari <strong>{pairConfirm?.supplierName}</strong>. Lanjutkan?
           </p>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+        <div className="modal-footer">
           <button type="button" className="btn btn-secondary" onClick={() => setPairConfirm(null)}>
             Batal
           </button>
