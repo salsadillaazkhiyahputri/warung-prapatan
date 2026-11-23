@@ -14,7 +14,6 @@ import {
   AlertTriangle,
   ArrowRight,
   Plus,
-  RefreshCw,
   CheckCircle2,
   PackagePlus
 } from 'lucide-react';
@@ -109,14 +108,7 @@ export default function DashboardPage() {
       )}
 
       {/* 3 Metric Summary Cards */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-          gap: '18px',
-          marginBottom: '26px'
-        }}
-      >
+      <div className="grid-responsive-3" style={{ marginBottom: '24px' }}>
         <StatCard
           title="Total Produk"
           value={isLoading ? '...' : stats?.total_products || 0}
@@ -150,6 +142,8 @@ export default function DashboardPage() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px',
             marginBottom: '16px'
           }}
         >
@@ -267,12 +261,6 @@ export default function DashboardPage() {
           onPageChange={lowStockPagination.setCurrentPage}
         />
       </div>
-
-      <style jsx global>{`
-        .hover-link:hover {
-          color: #2563EB !important;
-        }
-      `}</style>
     </DashboardLayout>
   );
 }
