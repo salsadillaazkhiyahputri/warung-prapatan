@@ -71,14 +71,6 @@ export const StatCard: React.FC<StatCardProps> = ({
       >
         {icon}
       </div>
-
-      <style jsx>{`
-        .stat-card:hover {
-          transform: translateY(-1px);
-          border-color: ${isAlert ? '#F87171' : '#CBD5E1'};
-          box-shadow: 0 4px 12px 0 rgba(15, 23, 42, 0.06);
-        }
-      `}</style>
     </div>
   );
 };
