@@ -8,7 +8,6 @@ import {
   AlertCircle,
   ArrowRight,
   Shield,
-  Store,
   Eye,
   EyeOff
 } from 'lucide-react';
@@ -113,7 +112,7 @@ export default function LoginPage() {
             </div>
 
             {/* Bagian Tengah: Sapaan Hangat & Deskripsi Sistem yang Berisi */}
-            <div style={{ marginTop: 'auto', marginBottom: 'auto', paddingTop: '34px', paddingBottom: '24px' }}>
+            <div className="login-hero-body">
               <h1 className="login-hero-title">
                 Halo,<br />
                 Selamat Datang!
