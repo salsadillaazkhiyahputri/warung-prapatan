@@ -138,7 +138,9 @@ input, select, textarea {
   min-height: 100dvh;
   position: relative;
   width: 100%;
-  overflow-x: hidden;
+  /* `clip` (bukan `hidden`) agar tidak membentuk scroll container,
+     sehingga sidebar `position: sticky` tetap menempel ke viewport. */
+  overflow-x: clip;
 }
 
 /* Sidebar Responsive Styles */
